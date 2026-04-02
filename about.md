@@ -29,22 +29,20 @@ The current emergency healthcare system (especially in India) suffers from:
 * Resource mismanagement
 * Time loss in emergency scenarios
 
----
 
-## 💡 Solution
+## Solution
 
-RapidCare introduces a **centralized, real-time platform** that:
+RapidCare introduces a centralized, real-time platform that:
 
-### 🚑 Ambulance Layer
+### Ambulance Layer
 
 * Sends emergency alerts (type, severity, location)
 * Supports voice-based input for fast interaction
 * Shares ETA and patient condition in real time
 
-### 🏥 Hospital Layer
+### Hospital Layer
 
 * Tracks:
-
   * ICU beds
   * General beds
   * Doctors
@@ -52,7 +50,7 @@ RapidCare introduces a **centralized, real-time platform** that:
 * Receives alerts and prepares in advance
 * Accepts/rejects incoming patients
 
-### 🔄 Referral System (Hospital → Hospital)
+###  Referral System (Hospital → Hospital)
 
 * Hospitals can refer patients to other hospitals
 * Smart matching based on:
@@ -61,76 +59,65 @@ RapidCare introduces a **centralized, real-time platform** that:
   * Distance
   * Specialization
 * Includes:
-
   * Request lifecycle
   * Bed reservation system
   * Transfer tracking
 
-### 📱 Public Access Layer
+###  Public Access Layer
 
 * View nearby hospitals
 * Check availability (beds, doctors)
 * Emergency routing
 
----
 
-## 🏗️ System Architecture
+## System Architecture
 
 ### Architecture Style
 
 > Event-Driven + Microservices (scalable)
 > MVP starts as Modular Monolith (Django)
 
----
+### High-Level Components
 
-### 🔧 High-Level Components
-
-#### 1. Frontend (React)
+1. Frontend (React)
 
 * Ambulance App
 * Hospital Dashboard
 * Public Web App
 
-#### 2. API Gateway
+2. API Gateway
 
 * Entry point for all clients
 * Handles authentication and routing
 * Implemented via NGINX / Kubernetes Ingress
 
-#### 3. Backend Services (Python + Django)
+3. Backend Services (Python + Django)
 
-* **Auth Service**
-
+**Auth Service**
   * Role-based access (Ambulance, Hospital, Public)
 
-* **Emergency Service**
-
+**Emergency Service**
   * Handles ambulance alerts
   * Publishes events
 
-* **Hospital Resource Service**
-
+**Hospital Resource Service**
   * Manages beds, doctors, equipment
 
-* **Referral Service**
-
+**Referral Service**
   * Handles inter-hospital transfers
   * Maintains lifecycle states
 
-* **Notification Service**
-
+**Notification Service**
   * Sends real-time alerts (WebSockets, SMS fallback)
 
----
 
-#### 4. Event Streaming Layer
+4. Event Streaming Layer
 
 * Kafka / Redis Streams
 * Enables real-time communication between services
 
----
 
-#### 5. Real-Time Layer
+5. Real-Time Layer
 
 * WebSockets (Django Channels)
 * Used for:
@@ -139,24 +126,21 @@ RapidCare introduces a **centralized, real-time platform** that:
   * Tracking
   * Dashboard updates
 
----
 
-#### 6. Database Layer
+6. Database Layer
 
 * PostgreSQL (primary database)
 * Redis (caching + real-time support)
 
----
 
-#### 7. Infrastructure
+7. Infrastructure
 
 * Docker (containerization)
 * Kubernetes (orchestration)
 * Helm (deployment management)
 
----
 
-## 🔄 Data Flow (Example)
+Data Flow (Example)
 
 1. Ambulance sends emergency event
 2. Backend processes and publishes event
@@ -165,9 +149,8 @@ RapidCare introduces a **centralized, real-time platform** that:
 5. If unavailable → referral triggered
 6. Another hospital accepts → transfer initiated
 
----
 
-## 🧩 Database Design
+### Database Design
 
 ### Users Table
 
@@ -178,7 +161,6 @@ role (ambulance / hospital / public)
 hospital_id (nullable)
 ```
 
----
 
 ### Hospitals Table
 
@@ -188,8 +170,6 @@ name
 location
 contact_info
 ```
-
----
 
 ### Hospital Resources Table
 
@@ -203,7 +183,6 @@ doctors_available
 last_updated
 ```
 
----
 
 ### Emergency Events Table
 
@@ -217,7 +196,6 @@ timestamp
 status
 ```
 
----
 
 ### Referrals Table
 
@@ -231,7 +209,6 @@ created_at
 updated_at
 ```
 
----
 
 ### Referral Responses Table
 
@@ -243,7 +220,6 @@ response (ACCEPT / REJECT)
 timestamp
 ```
 
----
 
 ### Audit Logs Table
 
@@ -255,18 +231,16 @@ timestamp
 metadata
 ```
 
----
 
-## 🔐 Security
+##  Security
 
 * JWT-based authentication
 * Role-Based Access Control (RBAC)
 * HTTPS enforced
 * Audit logging for all critical actions
 
----
 
-## ⚙️ Tech Stack
+## Tech Stack
 
 ### Backend
 
@@ -293,9 +267,8 @@ metadata
 * Kubernetes
 * NGINX (Ingress)
 
----
 
-## 🚀 MVP Scope
+##  MVP Scope
 
 ### Phase 1
 
@@ -314,27 +287,24 @@ metadata
 * AI-based hospital recommendation
 * Predictive triage
 
----
 
-## ⚠️ Challenges
+## ️ Challenges
 
 * Data accuracy (hospital updates)
 * Adoption by hospitals
 * Real-time latency constraints
 * Distributed system consistency
 
----
 
-## 🎯 Future Enhancements
+##  Future Enhancements
 
 * AI-based triage scoring
 * Predictive resource allocation
 * Integration with government health systems
 * IoT integration (live vitals from ambulance)
 
----
 
-## 🧠 Conclusion
+##  Conclusion
 
 RapidCare transforms emergency healthcare from:
 
@@ -344,20 +314,5 @@ to:
 
 > ✅ Real-time, intelligent, and coordinated
 
----
-
-## 📦 Setup (Basic)
-
-```bash
-# Clone repo
-git clone <repo-url>
-
-# Run with Docker
-docker-compose up --build
-```
-
----
-
-## 👨‍💻 Author
-
-Devashish – Software Engineer
+##  Author
+Devashish Dobriyal
