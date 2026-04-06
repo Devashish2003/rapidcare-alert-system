@@ -1,17 +1,18 @@
-from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
+from rest_framework import serializers
+
 from .models import User, UserProfile
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
     password_confirm = serializers.CharField(write_only=True)
-    mobile = serializers.CharField(source='phone_number', write_only=True)
     
     class Meta:
         model = User
-        fields = ['username', 'email', 'first_name', 'last_name', 'mobile', 'role', 'password', 'password_confirm']
+        fields = ['username', 'email', 'first_name', 'last_name', 'phone_number', 'role', 'password',
+                  'password_confirm']
     
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
@@ -20,12 +21,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         validated_data.pop('password_confirm')
-        # Handle mobile field mapping
-        phone_number = validated_data.pop('phone_number')
-        validated_data['phone_number'] = phone_number
-        
         user = User.objects.create_user(**validated_data)
-        UserProfile.objects.create(user=user)
+        UserProfile.objects.get_or_create(user=user)
         return user
 
 

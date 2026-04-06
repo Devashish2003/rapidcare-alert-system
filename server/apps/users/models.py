@@ -12,7 +12,8 @@ class User(AbstractUser):
         ('PARAMEDIC_STAFF', 'Paramedic Staff'),
         ('FRONT_DESK', 'Front Desk Staff'),
     ]
-    
+
+    email = models.EmailField(unique=True)
     role = models.CharField(max_length=20, choices=USER_ROLES, default='CIVILIAN')
     phone_number = models.CharField(max_length=15, unique=True)
     is_verified = models.BooleanField(default=False)

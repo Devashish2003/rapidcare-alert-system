@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+
 from .models import User, UserProfile, UserDevice, UserSession
 
 
@@ -21,8 +22,8 @@ class UserAdmin(BaseUserAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ['user', 'license_number', 'ambulance_id', 'hospital', 'department', 'is_on_duty']
-    list_filter = ['is_on_duty', 'hospital', 'department']
+    list_display = ['user', 'license_number', 'ambulance_id', 'department', 'is_on_duty']
+    list_filter = ['is_on_duty', 'department']
     search_fields = ['user__email', 'user__first_name', 'user__last_name', 'license_number', 'ambulance_id']
 
 

@@ -1,9 +1,16 @@
-import React, { useState } from "react";
+import React, {useState} from "react";
+import {useNavigate} from "react-router-dom";
+import {useAuth} from "../../contexts/AuthContext";
 import "./Auth.css";
 
 const Register = () => {
+    const navigate = useNavigate();
+    const {register, loading: authLoading} = useAuth();
+  
   const [form, setForm] = useState({
-    name: "",
+      username: "",
+      first_name: "",
+      last_name: "",
     email: "",
     mobile: "",
     password: "",
@@ -15,6 +22,7 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
+    const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
     setForm({
@@ -58,10 +66,20 @@ const Register = () => {
 
   const validateForm = () => {
     const newErrors = {};
-    
-    // Name validation
-    if (!form.name.trim()) {
-      newErrors.name = "Name is required";
+
+      // Username validation
+      if (!form.username.trim()) {
+          newErrors.username = "Username is required";
+      }
+
+      // First name validation
+      if (!form.first_name.trim()) {
+          newErrors.first_name = "First name is required";
+      }
+
+      // Last name validation
+      if (!form.last_name.trim()) {
+          newErrors.last_name = "Last name is required";
     }
     
     // Email validation
@@ -96,7 +114,7 @@ const Register = () => {
     return newErrors;
   };
 
-  const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
     e.preventDefault();
     
     const newErrors = validateForm();
@@ -105,9 +123,64 @@ const Register = () => {
       setErrors(newErrors);
       return;
     }
-    
-    console.log("REGISTER DATA:", form);
-    // TODO: API call
+
+        setIsLoading(true);
+
+        try {
+            // Map frontend form to backend format
+            const userData = {
+                username: form.username,
+                first_name: form.first_name,
+                last_name: form.last_name,
+                email: form.email,
+                phone_number: form.mobile,
+                role: getBackendRole(form.role, form.subRole),
+                password: form.password,
+                password_confirm: form.confirmPassword,
+            };
+
+            const response = await register(userData);
+
+            // Redirect based on user role
+            const redirectPath = response.user.role === 'CIVILIAN' ? '/dashboard' : '/admin/dashboard';
+            navigate(redirectPath);
+
+        } catch (error) {
+            const errorData = error.response?.data || {};
+            const newErrors = {};
+
+            // Handle field-specific errors
+            Object.keys(errorData).forEach(key => {
+                if (Array.isArray(errorData[key])) {
+                    newErrors[key] = errorData[key][0];
+                } else if (typeof errorData[key] === 'string') {
+                    newErrors[key] = errorData[key];
+                }
+            });
+
+            // Handle non-field errors
+            if (errorData.non_field_errors) {
+                newErrors.general = errorData.non_field_errors[0];
+            }
+
+            setErrors(newErrors);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Helper function to map frontend roles to backend roles
+    const getBackendRole = (role, subRole) => {
+        if (role === 'CIVILIAN') return 'CIVILIAN';
+        if (role === 'AMBULANCE') {
+            return subRole === 'DRIVER' ? 'AMBULANCE_DRIVER' : 'PARAMEDIC_ASSISTANT';
+        }
+        if (role === 'HOSPITAL') {
+            if (subRole === 'DOCTOR') return 'DOCTOR';
+            if (subRole === 'STAFF') return 'PARAMEDIC_STAFF';
+            if (subRole === 'ADMIN') return 'FRONT_DESK';
+        }
+        return 'CIVILIAN';
   };
 
   return (
@@ -128,20 +201,55 @@ const Register = () => {
 
           <h2>Create Account</h2>
 
+            {/* General Error Message */}
+            {errors.general && (
+                <div className="error-message general">
+                    {errors.general}
+                </div>
+            )}
+
           <form onSubmit={handleSubmit}>
 
-            {/* NAME */}
+              {/* USERNAME */}
             <div className="input-group">
               <input
                 type="text"
-                name="name"
+                name="username"
                 placeholder=" "
-                value={form.name}
+                value={form.username}
                 onChange={handleChange}
                 required
               />
-              <label>Full Name</label>
-              {errors.name && <span className="error-message">{errors.name}</span>}
+                <label>Username</label>
+                {errors.username && <span className="error-message">{errors.username}</span>}
+            </div>
+
+              {/* FIRST NAME */}
+              <div className="input-group">
+                  <input
+                      type="text"
+                      name="first_name"
+                      placeholder=" "
+                      value={form.first_name}
+                      onChange={handleChange}
+                      required
+                  />
+                  <label>First Name</label>
+                  {errors.first_name && <span className="error-message">{errors.first_name}</span>}
+              </div>
+
+              {/* LAST NAME */}
+              <div className="input-group">
+                  <input
+                      type="text"
+                      name="last_name"
+                      placeholder=" "
+                      value={form.last_name}
+                      onChange={handleChange}
+                      required
+                  />
+                  <label>Last Name</label>
+                  {errors.last_name && <span className="error-message">{errors.last_name}</span>}
             </div>
 
             {/* EMAIL */}
@@ -260,7 +368,9 @@ const Register = () => {
             )}
 
             {/* BUTTON */}
-            <button type="submit">Create Account</button>
+              <button type="submit" disabled={isLoading || authLoading}>
+                  {isLoading || authLoading ? 'Creating Account...' : 'Create Account'}
+              </button>
 
           </form>
 

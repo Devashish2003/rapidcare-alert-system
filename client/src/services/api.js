@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 class ApiService {
   constructor() {
@@ -37,7 +37,7 @@ class ApiService {
           try {
             const refreshToken = localStorage.getItem('refresh_token');
             if (refreshToken) {
-              const response = await axios.post(`${API_BASE_URL}/users/token/refresh/`, {
+              const response = await axios.post(`${API_BASE_URL}/api/auth/token/refresh/`, {
                 refresh: refreshToken,
               });
 
@@ -63,37 +63,37 @@ class ApiService {
 
   // Authentication endpoints
   async login(email, password) {
-    const response = await this.api.post('/users/login/', { email, password });
+    const response = await this.api.post('/api/auth/login/', {email, password});
     return response.data;
   }
 
   async register(userData) {
-    const response = await this.api.post('/users/register/', userData);
+    const response = await this.api.post('/api/auth/register/', userData);
     return response.data;
   }
 
   async logout() {
-    const response = await this.api.post('/users/logout/');
+    const response = await this.api.post('/api/auth/logout/');
     return response.data;
   }
 
   async getUserProfile() {
-    const response = await this.api.get('/users/me/');
+    const response = await this.api.get('/api/auth/me/');
     return response.data;
   }
 
   async updateUserProfile(userData) {
-    const response = await this.api.put('/users/me/', userData);
+    const response = await this.api.put('/api/auth/me/', userData);
     return response.data;
   }
 
   async changePassword(passwordData) {
-    const response = await this.api.post('/users/change-password/', passwordData);
+    const response = await this.api.post('/api/auth/change-password/', passwordData);
     return response.data;
   }
 
   async getDashboard() {
-    const response = await this.api.get('/users/dashboard/');
+    const response = await this.api.get('/api/auth/dashboard/');
     return response.data;
   }
 }

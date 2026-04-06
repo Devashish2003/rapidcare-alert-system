@@ -1,7 +1,12 @@
-import React, { useState } from "react";
+import React, {useState} from "react";
+import {useNavigate} from "react-router-dom";
+import {useAuth} from "../../contexts/AuthContext";
 import "./Auth.css";
 
 const Login = () => {
+  const navigate = useNavigate();
+  const {login, loading: authLoading} = useAuth();
+  
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -9,6 +14,7 @@ const Login = () => {
 
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
     setForm({
@@ -43,7 +49,7 @@ const Login = () => {
     return newErrors;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     const newErrors = validateForm();
@@ -52,9 +58,24 @@ const Login = () => {
       setErrors(newErrors);
       return;
     }
-    
-    console.log("LOGIN DATA:", form);
-    // TODO: API call
+
+    setIsLoading(true);
+
+    try {
+      const response = await login(form.email, form.password);
+
+      // Redirect based on user role
+      const redirectPath = response.user.role === 'CIVILIAN' ? '/dashboard' : '/admin/dashboard';
+      navigate(redirectPath);
+
+    } catch (error) {
+      const errorMessage = error.response?.data?.non_field_errors?.[0] ||
+          error.response?.data?.detail ||
+          'Login failed. Please try again.';
+      setErrors({general: errorMessage});
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -74,6 +95,13 @@ const Login = () => {
         <div className="auth-card">
 
           <h2>Welcome Back</h2>
+
+          {/* General Error Message */}
+          {errors.general && (
+              <div className="error-message general">
+                {errors.general}
+              </div>
+          )}
 
           <form onSubmit={handleSubmit}>
 
@@ -112,7 +140,9 @@ const Login = () => {
             </div>
 
             {/* BUTTON */}
-            <button type="submit">Login</button>
+            <button type="submit" disabled={isLoading || authLoading}>
+              {isLoading || authLoading ? 'Logging in...' : 'Login'}
+            </button>
 
           </form>
 

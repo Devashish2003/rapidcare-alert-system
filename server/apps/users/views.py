@@ -1,12 +1,13 @@
+from django.contrib.auth import login, logout
 from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.contrib.auth import login, logout
+from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
+
 from .models import User, UserProfile
 from .serializers import (
-    UserRegistrationSerializer, UserLoginSerializer, 
+    UserRegistrationSerializer, UserLoginSerializer,
     UserSerializer, UserProfileSerializer, PasswordChangeSerializer
 )
 
@@ -25,7 +26,12 @@ class RegisterView(generics.CreateAPIView):
         refresh = RefreshToken.for_user(user)
         
         return Response({
-            'user': UserSerializer(user).data,
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'role': user.role
+            },
             'tokens': {
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
@@ -62,10 +68,6 @@ def login_view(request):
 @permission_classes([IsAuthenticated])
 def logout_view(request):
     try:
-        refresh_token = request.data.get('refresh')
-        if refresh_token:
-            token = RefreshToken(refresh_token)
-            token.blacklist()
         logout(request)
         return Response({'message': 'Successfully logged out'})
     except Exception as e:
