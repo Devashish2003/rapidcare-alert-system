@@ -9,7 +9,7 @@ const Dashboard = () => {
         subtitle: "Connect ambulances with the right hospitals instantly. Real-time tracking, intelligent recommendations, and seamless coordination for critical care.",
         ctaButtons: [
             {label: "Ambulance Driver", icon: "🚨", link: "/driver-login"},
-            {label: "Hospital Staff", icon: "🏥", link: "/hospital-login"},
+            {label: "Hospital Staff", icon: "🏥", link: "/hospital-dashboard"},
             {label: "Find Hospitals", icon: "🔍", link: "/find-hospitals"},
         ],
     });

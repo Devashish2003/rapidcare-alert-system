@@ -6,7 +6,7 @@ import "./Auth.css";
 const Register = () => {
     const navigate = useNavigate();
     const {register, loading: authLoading} = useAuth();
-  
+
   const [form, setForm] = useState({
       username: "",
       first_name: "",
@@ -40,33 +40,57 @@ const Register = () => {
 
   const validatePassword = (password) => {
     const errors = [];
-    
+
     if (password.length < 8) {
       errors.push("Password must be at least 8 characters long");
     }
-    
+
     if (!/[A-Z]/.test(password)) {
       errors.push("Password must contain at least one uppercase letter");
     }
-    
+
     if (!/[a-z]/.test(password)) {
       errors.push("Password must contain at least one lowercase letter");
     }
-    
+
     if (!/[0-9]/.test(password)) {
       errors.push("Password must contain at least one number");
     }
-    
+
     if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
       errors.push("Password must contain at least one special character");
     }
-    
+
     return errors;
   };
 
   const validateForm = () => {
     const newErrors = {};
 
+      // Hospital signup validation
+      if (form.role === "HOSPITAL_SIGNUP") {
+          if (!form.hospitalName?.trim()) {
+              newErrors.hospitalName = "Hospital name is required";
+          }
+          if (!form.address?.trim()) {
+              newErrors.address = "Address is required";
+          }
+          if (!form.phone?.trim()) {
+              newErrors.phone = "Hospital phone is required";
+          }
+          if (!form.bedCapacity) {
+              newErrors.bedCapacity = "Bed capacity is required";
+          }
+          if (!form.emergencyContact?.trim()) {
+              newErrors.emergencyContact = "Emergency contact is required";
+          }
+          if (!form.adminEmail?.trim()) {
+              newErrors.adminEmail = "Admin email is required";
+          } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.adminEmail)) {
+              newErrors.adminEmail = "Please enter a valid admin email";
+          }
+      } else {
+          // Regular user validation
       // Username validation
       if (!form.username.trim()) {
           newErrors.username = "Username is required";
@@ -80,46 +104,47 @@ const Register = () => {
       // Last name validation
       if (!form.last_name.trim()) {
           newErrors.last_name = "Last name is required";
+      }
+
+          // Email validation
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!form.email.trim()) {
+              newErrors.email = "Email is required";
+          } else if (!emailRegex.test(form.email)) {
+              newErrors.email = "Please enter a valid email";
+          }
+
+          // Mobile validation
+          const mobileRegex = /^[0-9]{10}$/;
+          if (!form.mobile.trim()) {
+              newErrors.mobile = "Mobile number is required";
+          } else if (!mobileRegex.test(form.mobile)) {
+              newErrors.mobile = "Please enter a valid 10-digit mobile number";
+          }
+
+          // Password validation
+          const passwordErrors = validatePassword(form.password);
+          if (passwordErrors.length > 0) {
+              newErrors.password = passwordErrors.join(", ");
+          }
+
+          // Confirm password validation
+          if (!form.confirmPassword) {
+              newErrors.confirmPassword = "Please confirm your password";
+          } else if (form.password !== form.confirmPassword) {
+              newErrors.confirmPassword = "Passwords do not match";
+          }
     }
-    
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!form.email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!emailRegex.test(form.email)) {
-      newErrors.email = "Please enter a valid email";
-    }
-    
-    // Mobile validation
-    const mobileRegex = /^[0-9]{10}$/;
-    if (!form.mobile.trim()) {
-      newErrors.mobile = "Mobile number is required";
-    } else if (!mobileRegex.test(form.mobile)) {
-      newErrors.mobile = "Please enter a valid 10-digit mobile number";
-    }
-    
-    // Password validation
-    const passwordErrors = validatePassword(form.password);
-    if (passwordErrors.length > 0) {
-      newErrors.password = passwordErrors.join(", ");
-    }
-    
-    // Confirm password validation
-    if (!form.confirmPassword) {
-      newErrors.confirmPassword = "Please confirm your password";
-    } else if (form.password !== form.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match";
-    }
-    
-    return newErrors;
+
+      return newErrors;
   };
 
     const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    const newErrors = validateForm();
-    
-    if (Object.keys(newErrors).length > 0) {
+
+        const newErrors = validateForm();
+
+        if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
@@ -127,22 +152,39 @@ const Register = () => {
         setIsLoading(true);
 
         try {
-            // Map frontend form to backend format
-            const userData = {
-                username: form.username,
-                first_name: form.first_name,
-                last_name: form.last_name,
-                email: form.email,
-                phone_number: form.mobile,
-                role: getBackendRole(form.role, form.subRole),
-                password: form.password,
-                password_confirm: form.confirmPassword,
-            };
+            let userData;
+
+            if (form.role === "HOSPITAL_SIGNUP") {
+                // Hospital signup data
+                userData = {
+                    name: form.hospitalName,
+                    address: form.address,
+                    phone: form.phone,
+                    bed_capacity: parseInt(form.bedCapacity),
+                    emergency_contact: form.emergencyContact,
+                    admin_email: form.adminEmail,
+                    password: form.password,
+                    password_confirm: form.confirmPassword,
+                };
+            } else {
+                // Regular user signup data
+                userData = {
+                    username: form.username,
+                    first_name: form.first_name,
+                    last_name: form.last_name,
+                    email: form.email,
+                    phone_number: form.mobile,
+                    role: getBackendRole(form.role, form.subRole),
+                    password: form.password,
+                    password_confirm: form.confirmPassword,
+                };
+            }
 
             const response = await register(userData);
 
             // Redirect based on user role
-            const redirectPath = response.user.role === 'CIVILIAN' ? '/dashboard' : '/admin/dashboard';
+            const redirectPath = form.role === "HOSPITAL_SIGNUP" ? '/hospital-dashboard' :
+                response.user.role === 'CIVILIAN' ? '/dashboard' : '/admin/dashboard';
             navigate(redirectPath);
 
         } catch (error) {
@@ -200,6 +242,32 @@ const Register = () => {
         <div className="auth-card">
 
           <h2>Create Account</h2>
+
+            {/* REGISTRATION TYPE BUTTONS */}
+            <div className="registration-type">
+                <button
+                    type="button"
+                    className={`type-btn ${form.role !== "HOSPITAL_SIGNUP" ? "active" : ""}`}
+                    onClick={() => setForm({
+                        ...form,
+                        role: form.role === "HOSPITAL_SIGNUP" ? "CIVILIAN" : form.role,
+                        subRole: ""
+                    })}
+                >
+                    User Registration
+                </button>
+                <button
+                    type="button"
+                    className={`type-btn ${form.role === "HOSPITAL_SIGNUP" ? "active" : ""}`}
+                    onClick={() => setForm({
+                        ...form,
+                        role: "HOSPITAL_SIGNUP",
+                        subRole: ""
+                    })}
+                >
+                    Hospital Registration
+                </button>
+            </div>
 
             {/* General Error Message */}
             {errors.general && (
@@ -321,22 +389,25 @@ const Register = () => {
               {errors.confirmPassword && <span className="error-message">{errors.confirmPassword}</span>}
             </div>
 
-            {/* ROLE */}
-            <select
-              name="role"
-              value={form.role}
-              onChange={(e) => {
-                setForm({
-                  ...form,
-                  role: e.target.value,
-                  subRole: "", // reset subRole when role changes
-                });
-              }}
-            >
-              <option value="CIVILIAN">Civilian</option>
-              <option value="AMBULANCE">Ambulance Services</option>
-              <option value="HOSPITAL">Hospital Staff</option>
-            </select>
+
+              {/* ROLE - USER REGISTRATION */}
+              {(form.role === "CIVILIAN" || form.role === "AMBULANCE" || form.role === "HOSPITAL") && (
+                  <select
+                      name="role"
+                      value={form.role}
+                      onChange={(e) => {
+                          setForm({
+                              ...form,
+                              role: e.target.value,
+                              subRole: "", // reset subRole when role changes
+                          });
+                      }}
+                  >
+                      <option value="CIVILIAN">Civilian</option>
+                      <option value="AMBULANCE">Ambulance Services</option>
+                      <option value="HOSPITAL">Hospital Staff</option>
+                  </select>
+              )}
 
             {/* SUB ROLE - AMBULANCE */}
             {form.role === "AMBULANCE" && (
@@ -366,6 +437,90 @@ const Register = () => {
                 <option value="ADMIN">Front Desk/Admin</option>
               </select>
             )}
+
+              {/* HOSPITAL SIGNUP FIELDS */}
+              {form.role === "HOSPITAL_SIGNUP" && (
+                  <>
+                      <div className="input-group">
+                          <input
+                              type="text"
+                              name="hospitalName"
+                              placeholder=" "
+                              value={form.hospitalName || ""}
+                              onChange={handleChange}
+                              required
+                          />
+                          <label>Hospital Name</label>
+                          {errors.hospitalName && <span className="error-message">{errors.hospitalName}</span>}
+                      </div>
+
+                      <div className="input-group">
+                          <input
+                              type="text"
+                              name="address"
+                              placeholder=" "
+                              value={form.address || ""}
+                              onChange={handleChange}
+                              required
+                          />
+                          <label>Address</label>
+                          {errors.address && <span className="error-message">{errors.address}</span>}
+                      </div>
+
+                      <div className="input-group">
+                          <input
+                              type="tel"
+                              name="phone"
+                              placeholder=" "
+                              value={form.phone || ""}
+                              onChange={handleChange}
+                              maxLength="15"
+                              required
+                          />
+                          <label>Hospital Phone</label>
+                          {errors.phone && <span className="error-message">{errors.phone}</span>}
+                      </div>
+
+                      <div className="input-group">
+                          <input
+                              type="number"
+                              name="bedCapacity"
+                              placeholder=" "
+                              value={form.bedCapacity || ""}
+                              onChange={handleChange}
+                              required
+                          />
+                          <label>Total Bed Capacity</label>
+                          {errors.bedCapacity && <span className="error-message">{errors.bedCapacity}</span>}
+                      </div>
+
+                      <div className="input-group">
+                          <input
+                              type="text"
+                              name="emergencyContact"
+                              placeholder=" "
+                              value={form.emergencyContact || ""}
+                              onChange={handleChange}
+                              required
+                          />
+                          <label>Emergency Contact Person</label>
+                          {errors.emergencyContact && <span className="error-message">{errors.emergencyContact}</span>}
+                      </div>
+
+                      <div className="input-group">
+                          <input
+                              type="email"
+                              name="adminEmail"
+                              placeholder=" "
+                              value={form.adminEmail || ""}
+                              onChange={handleChange}
+                              required
+                          />
+                          <label>Admin Email</label>
+                          {errors.adminEmail && <span className="error-message">{errors.adminEmail}</span>}
+                      </div>
+                  </>
+              )}
 
             {/* BUTTON */}
               <button type="submit" disabled={isLoading || authLoading}>
