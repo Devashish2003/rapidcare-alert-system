@@ -1,0 +1,169 @@
+.availability-container {
+    padding: 20px;
+    background: #f7f9fc;
+    font-family: "Inter", sans-serif;
+    color: black;
+}
+
+/* HEADER */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.primary-btn {
+    background: #2563eb;
+    color: white;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.secondary-btn {
+    background: #f1f5f9;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+}
+
+/* REALTIME */
+.realtime-card {
+    margin-top: 15px;
+    padding: 15px;
+    border: 1px solid #dbeafe;
+    background: #eff6ff;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* SECTION */
+.section {
+    margin-top: 25px;
+}
+
+/* DEPARTMENT */
+.dept-card {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-top: 12px;
+}
+
+.dept-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dept-inputs {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.dept-inputs input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background-color: white;
+    color: black;
+}
+
+/* BLOOD */
+.blood-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.blood-card {
+    background: white;
+    padding: 12px;
+    border-radius: 10px;
+}
+
+/* STATUS */
+.status {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 12px;
+}
+
+.status.good {
+    color: green;
+}
+
+.status.medium {
+    color: orange;
+}
+
+.status.low {
+    color: red;
+}
+
+/* EQUIPMENT */
+.equipment-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+.equipment-card {
+    background: white;
+    padding: 12px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* SWITCH */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+}
+
+.switch input {
+    display: none;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    background: #ccc;
+    border-radius: 20px;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+.slider:before {
+    content: "";
+    position: absolute;
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.3s;
+}
+
+.switch input:checked + .slider {
+    background: #22c55e;
+}
+
+.switch input:checked + .slider:before {
+    transform: translateX(18px);
+}
+
+/* SAVE */
+.save-bottom {
+    margin-top: 20px;
+}

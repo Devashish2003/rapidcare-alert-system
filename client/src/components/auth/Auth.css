@@ -244,8 +244,8 @@ html, body {
 /* GLASS CARD */
 .auth-card {
   width: 100%;
-  max-width: 520px;
-  padding: 50px;
+  max-width: 600px;
+  padding: 20px;
   border-radius: 18px;
 
   background: rgba(255, 255, 255, 0.6);
@@ -256,24 +256,58 @@ html, body {
     0 0 40px rgba(220,38,38,0.1);
 
   animation: floatUp 0.8s ease;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 /* TITLE */
 .auth-card h2 {
-  margin-bottom: 25px;
+  margin-bottom: 15px;
   color: #111827;
+}
+
+/* REGISTRATION TYPE */
+.registration-type {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.type-btn {
+  flex: 1;
+  padding: 12px 20px;
+  border: 2px solid #e5e7eb;
+  background: #f8fafc;
+  color: #6b7280;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.type-btn.active {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+}
+
+.type-btn:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
 }
 
 /* INPUT GROUP */
 .input-group {
   position: relative;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 }
 
 .input-group input {
   width: 100%;
-  padding: 18px;
-  padding-right: 45px;
+  padding: 14px;
+  padding-right: 40px;
   border-radius: 10px;
   border: 1px solid #e5e7eb;
   outline: none;
@@ -299,7 +333,7 @@ html, body {
 .password-eye {
   position: absolute;
   right: 12px;
-  top: 18px;
+  top: 14px;
   cursor: pointer;
   font-size: 16px;
   color: #6b7280;
@@ -316,7 +350,7 @@ html, body {
 .input-group label {
   position: absolute;
   left: 14px;
-  top: 14px;
+  top: 10px;
   color: #9ca3af;
   font-size: 14px;
   transition: 0.3s;
@@ -336,10 +370,10 @@ html, body {
 /* SELECT */
 .auth-card select {
   width: 100%;
-  padding: 18px;
+  padding: 14px;
   border-radius: 10px;
   border: 1px solid #e5e7eb;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
   color: #000000;
   font-size: 16px;
   background-color: #ffffff;
@@ -348,7 +382,7 @@ html, body {
 /* BUTTON */
 .auth-card button {
   width: 100%;
-  padding: 14px;
+  padding: 12px;
   border-radius: 10px;
   border: none;
   font-weight: 600;
@@ -368,13 +402,20 @@ html, body {
 
 /* TEXT */
 .switch {
-  margin-top: 18px;
-  text-align: center;
+  margin: 12px auto 0 auto !important;
   color: #6b7280;
+  white-space: nowrap;
+  text-align: center !important;
+  display: block !important;
+  width: fit-content !important;
+  float: none !important;
+  position: relative !important;
+  left: 0 !important;
+  right: 0 !important;
 }
 
-.login-link {
-  color: #dc2626;
+.switch .login-link {
+  color: #dc2626 !important;
   text-decoration: none;
   font-weight: 600;
   transition: color 0.3s;
