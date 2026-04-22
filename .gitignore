@@ -24,3 +24,11 @@ db.sqlite3
 Thumbs.db
 .vscode/
 .idea/
+
+# Django migrations
+**/migrations/
+!**/migrations/__init__.py
+
+# Django custom management commands
+**/management/
+
