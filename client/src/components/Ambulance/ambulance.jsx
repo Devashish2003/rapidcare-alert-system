@@ -1,10 +1,11 @@
 import React, {useEffect, useState} from "react";
 import {useNavigate} from "react-router-dom";
+import {useAuth} from "../../contexts/AuthContext";
 import apiService from "../../services/api";
 import "./ambulance.css";
 
 const Ambulance = () => {
-    const [user, setUser] = useState(null);
+    const {user: authUser} = useAuth();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [dashboardData, setDashboardData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -18,27 +19,12 @@ const Ambulance = () => {
     const fetchDashboardData = async () => {
         try {
             setLoading(true);
+            setError(null);
             const data = await apiService.getAmbulanceDashboard();
             setDashboardData(data);
-            
-            // Set user data from ambulance info
-            if (data.ambulance && data.ambulance.driver) {
-                setUser({
-                    name: data.ambulance.driver.username || 'Driver',
-                    role: data.ambulance.driver.role || 'Ambulance Driver',
-                    avatar: "🚑"
-                });
-            }
         } catch (err) {
             setError('Failed to load dashboard data');
             console.error('Error fetching dashboard:', err);
-            
-            // Set fallback user data
-            setUser({
-                name: "Driver",
-                role: "Ambulance Driver",
-                avatar: "🚑"
-            });
         } finally {
             setLoading(false);
         }
@@ -87,19 +73,14 @@ const Ambulance = () => {
         setIsMobileMenuOpen(false);
     };
 
-    if (loading) {
-        return <div className="dashboard-container">Loading...</div>;
-    }
-
-    if (error) {
-        return <div className="dashboard-container">Error: {error}</div>;
-    }
-
     const stats = dashboardData?.stats || {};
     const ambulance = dashboardData?.ambulance;
     const activeEmergencies = dashboardData?.active_emergencies || [];
     const recentEmergencies = dashboardData?.recent_emergencies || [];
     const nearbyHospitals = dashboardData?.nearby_hospitals || [];
+
+    const displayName = authUser?.first_name || authUser?.username || 'Driver';
+    const displayRole = authUser?.role_display || authUser?.role || 'Ambulance Driver';
 
     return (
         <div className="dashboard-container">
@@ -135,28 +116,34 @@ const Ambulance = () => {
                 </div>
 
                 {/* USER PROFILE */}
-                {user && (
-                    <div className="user-profile">
-                        <div className="user-info" onClick={() => console.log('Open user profile')}>
-                            <span className="user-avatar">{user.avatar}</span>
-                            <div className="user-details">
-                                <span className="user-name">{user.name}</span>
-                                <span className="user-role">{user.role}</span>
-                            </div>
-                            <span className="dropdown-arrow">▼</span>
+                <div className="user-profile">
+                    <div className="user-info">
+                        <span className="user-avatar">🚑</span>
+                        <div className="user-details">
+                            <span className="user-name">{displayName}</span>
+                            <span className="user-role">{displayRole}</span>
                         </div>
+                        <span className="dropdown-arrow">▼</span>
                     </div>
-                )}
+                </div>
             </div>
             {/* PAGE HEADER */}
             <div className="page-header">
                 <div>
                     <h2>Driver Dashboard</h2>
-                    <p>Welcome back, {user?.name || 'Driver'}</p>
+                    <p>Welcome back, {displayName}</p>
                 </div>
 
                 <button className="primary-btn" onClick={() => handleNavigation('/new-emergency')}>+ New Emergency</button>
             </div>
+
+            {/* Inline loading / error banners */}
+            {loading && <div style={{padding: '1rem', color: '#6b7280'}}>Loading dashboard...</div>}
+            {error && !loading && (
+                <div style={{padding: '1rem', color: '#dc2626', background: '#fef2f2', borderRadius: '8px', margin: '1rem 0'}}>
+                    {error} — <button onClick={fetchDashboardData} style={{color: '#dc2626', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer'}}>Retry</button>
+                </div>
+            )}
 
             {/* Stats */}
             <div className="stats-grid">

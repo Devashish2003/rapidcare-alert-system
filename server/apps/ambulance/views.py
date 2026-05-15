@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q, Count
 from django.utils import timezone
 from datetime import timedelta
+import uuid
 from .models import Ambulance, Emergency, LocationUpdate
 from .serializers import (
     AmbulanceSerializer, EmergencySerializer, EmergencyCreateSerializer,
@@ -35,12 +36,20 @@ class AmbulanceViewSet(viewsets.ModelViewSet):
         """Get ambulance dashboard data including stats, active emergencies, and nearby hospitals"""
         try:
             ambulance = self.get_queryset().first()
-            
+
             if not ambulance:
-                return Response(
-                    {'error': 'No ambulance assigned to this user'},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+                # Auto-create an ambulance unit for new drivers on first login
+                if request.user.role in ['AMBULANCE_DRIVER', 'PARAMEDIC_ASSISTANT']:
+                    ambulance = Ambulance.objects.create(
+                        unit_number=f"AMB-{uuid.uuid4().hex[:6].upper()}",
+                        driver=request.user,
+                        status='available',
+                    )
+                else:
+                    return Response(
+                        {'error': 'No ambulance assigned to this user'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
 
             # Get active emergencies
             active_emergencies = Emergency.objects.filter(
