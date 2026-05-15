@@ -12,6 +12,7 @@ import HospitalSelection from './components/Ambulance/hospitalselection';
 import Alerts from './components/hospital/Alerts';
 import Availability from './components/hospital/availability';
 import Referrals from './components/hospital/referrals';
+import Hospitals from './components/hospital/Hospitals';
 import './App.css';
 
 function App() {
@@ -86,6 +87,7 @@ function App() {
                       </ProtectedRoute>
                   }
               />
+              <Route path="/hospitals" element={<Hospitals />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </div>

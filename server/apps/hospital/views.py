@@ -16,14 +16,14 @@ from .serializers import (
 
 
 class HospitalViewSet(viewsets.ModelViewSet):
-    queryset = Hospital.objects.all()
+    queryset = Hospital.objects.filter(is_active=True)
     serializer_class = HospitalSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
 
 class DepartmentViewSet(viewsets.ModelViewSet):
     serializer_class = DepartmentSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
         hospital_id = self.request.query_params.get('hospital_id')
@@ -61,7 +61,7 @@ class DepartmentViewSet(viewsets.ModelViewSet):
 
 class BloodInventoryViewSet(viewsets.ModelViewSet):
     serializer_class = BloodInventorySerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
         hospital_id = self.request.query_params.get('hospital_id')
@@ -82,7 +82,7 @@ class BloodInventoryViewSet(viewsets.ModelViewSet):
 
 class EquipmentViewSet(viewsets.ModelViewSet):
     serializer_class = EquipmentSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
         hospital_id = self.request.query_params.get('hospital_id')
