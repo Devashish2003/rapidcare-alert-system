@@ -20,6 +20,26 @@ class HospitalViewSet(viewsets.ModelViewSet):
     serializer_class = HospitalSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def setup_defaults(self, request, pk=None):
+        hospital = self.get_object()
+
+        for bt, _ in BloodInventory.BLOOD_TYPES:
+            BloodInventory.objects.get_or_create(
+                hospital=hospital,
+                blood_type=bt,
+                defaults={'units_available': 0}
+            )
+
+        for eq_type, _ in Equipment.EQUIPMENT_TYPES:
+            Equipment.objects.get_or_create(
+                hospital=hospital,
+                equipment_type=eq_type,
+                defaults={'is_available': True, 'total_count': 1, 'available_count': 1}
+            )
+
+        return Response({'message': 'Hospital defaults initialized successfully'})
+
 
 class DepartmentViewSet(viewsets.ModelViewSet):
     serializer_class = DepartmentSerializer

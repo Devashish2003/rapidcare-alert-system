@@ -66,10 +66,19 @@ class Equipment(models.Model):
         ('mri', 'MRI Scanner'),
         ('xray', 'X-Ray Machine'),
         ('dialysis', 'Dialysis Machine'),
+        ('icu_monitor', 'ICU Monitor'),
+        ('ecg', 'ECG Machine'),
+        ('ultrasound', 'Ultrasound'),
+        ('incubator', 'Incubator'),
+        ('pulse_oximeter', 'Pulse Oximeter'),
+        ('infusion_pump', 'Infusion Pump'),
+        ('cardiac_monitor', 'Cardiac Monitor'),
+        ('oxygen_concentrator', 'Oxygen Concentrator'),
+        ('surgical_lights', 'Surgical Lights'),
     ]
 
     hospital = models.ForeignKey(Hospital, on_delete=models.CASCADE, related_name='equipment')
-    equipment_type = models.CharField(max_length=20, choices=EQUIPMENT_TYPES)
+    equipment_type = models.CharField(max_length=30, choices=EQUIPMENT_TYPES)
     is_available = models.BooleanField(default=True)
     total_count = models.PositiveIntegerField(default=1)
     available_count = models.PositiveIntegerField(default=1)

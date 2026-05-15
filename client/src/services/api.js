@@ -176,6 +176,40 @@ class ApiService {
     return response.data;
   }
 
+  async getHospital(hospitalId) {
+    const response = await this.api.get(`/api/hospital/hospitals/${hospitalId}/`);
+    return response.data;
+  }
+
+  async updateHospital(hospitalId, data) {
+    const response = await this.api.patch(`/api/hospital/hospitals/${hospitalId}/`, data);
+    return response.data;
+  }
+
+  async setupHospitalDefaults(hospitalId) {
+    const response = await this.api.post(`/api/hospital/hospitals/${hospitalId}/setup_defaults/`);
+    return response.data;
+  }
+
+  async createDepartment(data) {
+    const response = await this.api.post('/api/hospital/departments/', data);
+    return response.data;
+  }
+
+  async updateDepartment(deptId, data) {
+    const response = await this.api.patch(`/api/hospital/departments/${deptId}/`, data);
+    return response.data;
+  }
+
+  async deleteDepartment(deptId) {
+    await this.api.delete(`/api/hospital/departments/${deptId}/`);
+  }
+
+  async updateEquipment(equipmentId, data) {
+    const response = await this.api.patch(`/api/hospital/equipment/${equipmentId}/`, data);
+    return response.data;
+  }
+
   async getHospitalDashboardStats(hospitalId) {
     const response = await this.api.get('/api/hospital/dashboard/stats/', { params: { hospital_id: hospitalId } });
     return response.data;
