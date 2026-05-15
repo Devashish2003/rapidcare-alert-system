@@ -1,4 +1,6 @@
 import React, {useState} from "react";
+import {useNavigate} from "react-router-dom";
+import apiService from "../../services/api";
 import "./newemergency.css";
 
 const NewEmergency = () => {
@@ -12,6 +14,10 @@ const NewEmergency = () => {
         diabetic: false,
         hypertensive: false,
     });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(false);
+    const navigate = useNavigate();
 
     const handleChange = (e) => {
         const {name, value, type, checked} = e.target;
@@ -21,9 +27,35 @@ const NewEmergency = () => {
         });
     };
 
-    const handleSubmit = () => {
-        console.log("Form Data:", formData);
-        // integrate API call here
+    const handleSubmit = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            const emergencyData = {
+                patient_name: formData.name,
+                patient_age: parseInt(formData.age),
+                patient_gender: formData.gender,
+                blood_type: formData.bloodType,
+                condition_description: formData.condition,
+                severity: formData.severity,
+                is_diabetic: formData.diabetic,
+                is_hypertensive: formData.hypertensive,
+            };
+
+            const response = await apiService.createEmergency(emergencyData);
+            setSuccess(true);
+            
+            // Navigate to hospital selection after 2 seconds
+            setTimeout(() => {
+                navigate(`/hospital-selection/${response.id}`);
+            }, 2000);
+        } catch (err) {
+            setError('Failed to create emergency. Please try again.');
+            console.error('Error creating emergency:', err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -122,8 +154,11 @@ const NewEmergency = () => {
                     🎤 Add Voice Message (Optional)
                 </button>
 
-                <button className="submit-btn" onClick={handleSubmit}>
-                    Continue to Hospital Selection
+                {error && <div className="error-message">{error}</div>}
+                {success && <div className="success-message">Emergency created successfully! Redirecting to hospital selection...</div>}
+
+                <button className="submit-btn" onClick={handleSubmit} disabled={loading || success}>
+                    {loading ? 'Creating Emergency...' : success ? 'Created!' : 'Continue to Hospital Selection'}
                 </button>
             </div>
         </div>

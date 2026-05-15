@@ -218,6 +218,24 @@
     font-size: 13px;
 }
 
+.location-btn {
+    width: 100%;
+    margin-top: 15px;
+    padding: 12px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background 0.3s;
+}
+
+.location-btn:hover {
+    background: #2563eb;
+}
+
 /* Emergencies */
 .emergency-item {
     display: flex;

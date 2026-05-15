@@ -7,6 +7,8 @@ import Register from './components/auth/Register';
 import Dashboard from './components/dashboard/Dashboard';
 import HospitalDashboard from './components/hospital/hospitaldashboard';
 import Ambulance from './components/Ambulance/ambulance';
+import NewEmergency from './components/Ambulance/newemergency';
+import HospitalSelection from './components/Ambulance/hospitalselection';
 import Alerts from './components/hospital/Alerts';
 import Availability from './components/hospital/availability';
 import Referrals from './components/hospital/referrals';
@@ -33,6 +35,22 @@ function App() {
                   element={
                       <ProtectedRoute>
                           <Ambulance/>
+                      </ProtectedRoute>
+              }
+            />
+              <Route
+                  path="/new-emergency"
+                  element={
+                      <ProtectedRoute>
+                          <NewEmergency/>
+                      </ProtectedRoute>
+              }
+            />
+              <Route
+                  path="/hospital-selection/:emergencyId"
+                  element={
+                      <ProtectedRoute>
+                          <HospitalSelection/>
                       </ProtectedRoute>
               }
             />

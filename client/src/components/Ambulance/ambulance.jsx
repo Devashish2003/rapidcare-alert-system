@@ -1,21 +1,82 @@
 import React, {useEffect, useState} from "react";
 import {useNavigate} from "react-router-dom";
+import apiService from "../../services/api";
 import "./ambulance.css";
 
 const Ambulance = () => {
     const [user, setUser] = useState(null);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [dashboardData, setDashboardData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
-        // Mock user data - replace with actual auth context
-        const userData = {
-            name: "Driver Mike Wilson",
-            role: "Ambulance Driver",
-            avatar: "🚑"
-        };
-        setUser(userData);
+        fetchDashboardData();
     }, []);
+
+    const fetchDashboardData = async () => {
+        try {
+            setLoading(true);
+            const data = await apiService.getAmbulanceDashboard();
+            setDashboardData(data);
+            
+            // Set user data from ambulance info
+            if (data.ambulance && data.ambulance.driver) {
+                setUser({
+                    name: data.ambulance.driver.username || 'Driver',
+                    role: data.ambulance.driver.role || 'Ambulance Driver',
+                    avatar: "🚑"
+                });
+            }
+        } catch (err) {
+            setError('Failed to load dashboard data');
+            console.error('Error fetching dashboard:', err);
+            
+            // Set fallback user data
+            setUser({
+                name: "Driver",
+                role: "Ambulance Driver",
+                avatar: "🚑"
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleUpdateLocation = async () => {
+        if (!navigator.geolocation) {
+            alert('Geolocation is not supported by your browser');
+            return;
+        }
+
+        try {
+            const position = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                });
+            });
+
+            const { latitude, longitude } = position.coords;
+            
+            if (dashboardData?.ambulance?.id) {
+                await apiService.updateAmbulanceLocation(dashboardData.ambulance.id, {
+                    latitude: latitude.toString(),
+                    longitude: longitude.toString(),
+                    address: 'Current GPS Location'
+                });
+                
+                // Refresh dashboard data
+                await fetchDashboardData();
+                alert('Location updated successfully!');
+            }
+        } catch (err) {
+            console.error('Error updating location:', err);
+            alert('Failed to update location. Please try again.');
+        }
+    };
 
     const toggleMobileMenu = () => {
         setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -25,6 +86,20 @@ const Ambulance = () => {
         navigate(path);
         setIsMobileMenuOpen(false);
     };
+
+    if (loading) {
+        return <div className="dashboard-container">Loading...</div>;
+    }
+
+    if (error) {
+        return <div className="dashboard-container">Error: {error}</div>;
+    }
+
+    const stats = dashboardData?.stats || {};
+    const ambulance = dashboardData?.ambulance;
+    const activeEmergencies = dashboardData?.active_emergencies || [];
+    const recentEmergencies = dashboardData?.recent_emergencies || [];
+    const nearbyHospitals = dashboardData?.nearby_hospitals || [];
 
     return (
         <div className="dashboard-container">
@@ -39,7 +114,7 @@ const Ambulance = () => {
                              }}/>
                         <div className="brand-section">
                             <span className="brand-name">RapidCare</span>
-                            <span className="ambulance-unit">Unit #AMB-4521</span>
+                            <span className="ambulance-unit">Unit #{ambulance?.unit_number || 'AMB-0000'}</span>
                         </div>
                     </div>
 
@@ -80,29 +155,29 @@ const Ambulance = () => {
                     <p>Welcome back, {user?.name || 'Driver'}</p>
                 </div>
 
-                <button className="primary-btn">+ New Emergency</button>
+                <button className="primary-btn" onClick={() => handleNavigation('/new-emergency')}>+ New Emergency</button>
             </div>
 
             {/* Stats */}
             <div className="stats-grid">
                 <div className="card">
                     <p>Status</p>
-                    <h4 className="status on-duty">● On Duty</h4>
+                    <h4 className="status on-duty">● {stats.status || 'On Duty'}</h4>
                 </div>
 
                 <div className="card">
                     <p>Active Emergency</p>
-                    <h3>1</h3>
+                    <h3>{stats.active_emergencies || 0}</h3>
                 </div>
 
                 <div className="card">
                     <p>Today's Emergencies</p>
-                    <h3>5</h3>
+                    <h3>{stats.today_emergencies || 0}</h3>
                 </div>
 
                 <div className="card">
                     <p>Average Response</p>
-                    <h3>12m</h3>
+                    <h3>{stats.average_response_time || '12m'}</h3>
                 </div>
             </div>
 
@@ -114,44 +189,58 @@ const Ambulance = () => {
                     <div className="map-content">
                         <div className="map-icon">➤</div>
                         <h4>Your Current Location</h4>
-                        <p>Downtown Medical District</p>
-                        <span className="nearby">Nearby Hospitals (12)</span>
+                        <p>{ambulance?.current_location_lat && ambulance?.current_location_lng 
+                            ? `${ambulance.current_location_lat}, ${ambulance.current_location_lng}` 
+                            : 'Location not updated'}</p>
+                        <span className="nearby">Nearby Hospitals ({nearbyHospitals.length})</span>
                     </div>
                 </div>
+                <button className="location-btn" onClick={handleUpdateLocation}>
+                    📍 Update My Location
+                </button>
             </div>
+
+            {/* Active Emergencies */}
+            {activeEmergencies.length > 0 && (
+                <div className="card">
+                    <h4>⚡ Active Emergencies</h4>
+                    {activeEmergencies.map((emergency) => (
+                        <div className="emergency-item" key={emergency.id}>
+                            <div>
+                                <h5>
+                                    {emergency.patient_name} <span className={`badge ${emergency.severity}`}>{emergency.severity}</span>
+                                </h5>
+                                <p>{emergency.condition_description}</p>
+                                <span className="meta">
+              {emergency.assigned_hospital?.name || 'No hospital assigned'} • ETA: {emergency.eta_to_hospital || 'N/A'} • {emergency.distance_to_hospital || 'N/A'}
+            </span>
+                            </div>
+                            <span className={`status-pill ${emergency.status}`}>{emergency.status}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* Recent Emergencies */}
-            <div className="card">
-                <h4>⚡ Recent Emergencies</h4>
-
-                <div className="emergency-item">
-                    <div>
-                        <h5>
-                            John Doe <span className="badge critical">critical</span>
-                        </h5>
-                        <p>Cardiac Arrest</p>
-                        <span className="meta">
-              City General Hospital • ETA: 8 mins • 3.2 km
+            {recentEmergencies.length > 0 && (
+                <div className="card">
+                    <h4>⚡ Recent Emergencies</h4>
+                    {recentEmergencies.map((emergency) => (
+                        <div className="emergency-item" key={emergency.id}>
+                            <div>
+                                <h5>
+                                    {emergency.patient_name} <span className={`badge ${emergency.severity}`}>{emergency.severity}</span>
+                                </h5>
+                                <p>{emergency.condition_description}</p>
+                                <span className="meta">
+              {emergency.assigned_hospital?.name || 'No hospital assigned'} • {new Date(emergency.completed_at).toLocaleString()}
             </span>
-                    </div>
-
-                    <span className="status-pill enroute">En Route</span>
+                            </div>
+                            <span className="status-pill completed">Completed</span>
+                        </div>
+                    ))}
                 </div>
-
-                <div className="emergency-item">
-                    <div>
-                        <h5>
-                            Jane Smith <span className="badge high">high</span>
-                        </h5>
-                        <p>Severe Trauma</p>
-                        <span className="meta">
-              Metro Medical Center • 2 hours ago
-            </span>
-                    </div>
-
-                    <span className="status-pill completed">Completed</span>
-                </div>
-            </div>
+            )}
 
             {/* Tips */}
             <div className="tips-box">

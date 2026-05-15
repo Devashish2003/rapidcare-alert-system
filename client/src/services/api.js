@@ -96,6 +96,74 @@ class ApiService {
     const response = await this.api.get('/api/auth/dashboard/');
     return response.data;
   }
+
+  // Ambulance endpoints
+  async getAmbulanceDashboard() {
+    const response = await this.api.get('/api/ambulance/ambulances/dashboard/');
+    return response.data;
+  }
+
+  async getAmbulances() {
+    const response = await this.api.get('/api/ambulance/ambulances/');
+    return response.data;
+  }
+
+  async updateAmbulanceLocation(ambulanceId, locationData) {
+    const response = await this.api.post(`/api/ambulance/ambulances/${ambulanceId}/update_location/`, locationData);
+    return response.data;
+  }
+
+  async updateAmbulanceStatus(ambulanceId, status) {
+    const response = await this.api.post(`/api/ambulance/ambulances/${ambulanceId}/update_status/`, { status });
+    return response.data;
+  }
+
+  // Emergency endpoints
+  async getEmergencies() {
+    const response = await this.api.get('/api/ambulance/emergencies/');
+    return response.data;
+  }
+
+  async createEmergency(emergencyData) {
+    const response = await this.api.post('/api/ambulance/emergencies/', emergencyData);
+    return response.data;
+  }
+
+  async getEmergency(id) {
+    const response = await this.api.get(`/api/ambulance/emergencies/${id}/`);
+    return response.data;
+  }
+
+  async updateEmergencyStatus(emergencyId, status) {
+    const response = await this.api.post(`/api/ambulance/emergencies/${emergencyId}/update_status/`, { status });
+    return response.data;
+  }
+
+  async assignHospital(emergencyId, hospitalId, isBackup = false) {
+    const response = await this.api.post(`/api/ambulance/emergencies/${emergencyId}/assign_hospital/`, {
+      hospital_id: hospitalId,
+      is_backup: isBackup
+    });
+    return response.data;
+  }
+
+  async recommendHospitals(params) {
+    const response = await this.api.get('/api/ambulance/emergencies/recommend_hospitals/', { params });
+    return response.data;
+  }
+
+  // Location tracking endpoints
+  async getLocationUpdates(ambulanceId) {
+    const response = await this.api.get('/api/ambulance/location-updates/', {
+      params: { ambulance: ambulanceId }
+    });
+    return response.data;
+  }
+
+  async createLocationUpdate(locationData) {
+    const response = await this.api.post('/api/ambulance/location-updates/', locationData);
+    return response.data;
+  }
 }
 
 export default new ApiService();
