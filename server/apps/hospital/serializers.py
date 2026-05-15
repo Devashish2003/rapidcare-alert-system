@@ -33,21 +33,23 @@ class HospitalSignupSerializer(serializers.ModelSerializer):
         validated_data.pop('password_confirm')
         password = validated_data.pop('password')
 
-        # Create hospital without password first
         hospital = Hospital.objects.create(**validated_data)
 
-        # Create admin user for the hospital
         from django.contrib.auth import get_user_model
+        import uuid
         User = get_user_model()
 
         admin_user = User.objects.create_user(
             username=validated_data['admin_email'],
             email=validated_data['admin_email'],
             password=password,
+            phone_number=f"HOSP-{uuid.uuid4().hex[:10]}",
             first_name='Hospital',
             last_name='Administrator',
-            role='FRONT_DESK'
+            role='FRONT_DESK',
         )
+        admin_user.profile.hospital_id = hospital.id
+        admin_user.profile.save()
 
         return hospital
 

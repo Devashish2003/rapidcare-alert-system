@@ -77,6 +77,11 @@ class ApiService {
     return response.data;
   }
 
+  async registerHospital(hospitalData) {
+    const response = await this.api.post('/api/hospital/signup/', hospitalData);
+    return response.data;
+  }
+
   async getUserProfile() {
     const response = await this.api.get('/api/auth/me/');
     return response.data;

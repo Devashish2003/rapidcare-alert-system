@@ -1,6 +1,7 @@
 import React, {useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {useAuth} from "../../contexts/AuthContext";
+import apiService from "../../services/api";
 import "./Auth.css";
 
 const Register = () => {
@@ -152,11 +153,8 @@ const Register = () => {
         setIsLoading(true);
 
         try {
-            let userData;
-
             if (form.role === "HOSPITAL_SIGNUP") {
-                // Hospital signup data
-                userData = {
+                await apiService.registerHospital({
                     name: form.hospitalName,
                     address: form.address,
                     phone: form.phone,
@@ -165,10 +163,11 @@ const Register = () => {
                     admin_email: form.adminEmail,
                     password: form.password,
                     password_confirm: form.confirmPassword,
-                };
+                });
+                // Hospital signup creates an admin account — redirect to login
+                navigate('/login', { state: { message: 'Hospital registered! Login with your admin email.' } });
             } else {
-                // Regular user signup data
-                userData = {
+                const userData = {
                     username: form.username,
                     first_name: form.first_name,
                     last_name: form.last_name,
@@ -178,15 +177,16 @@ const Register = () => {
                     password: form.password,
                     password_confirm: form.confirmPassword,
                 };
+                const response = await register(userData);
+                const role = response.user.role;
+                if (role === 'AMBULANCE_DRIVER' || role === 'PARAMEDIC_ASSISTANT') {
+                    navigate('/ambulance');
+                } else if (['DOCTOR', 'PARAMEDIC_STAFF', 'FRONT_DESK'].includes(role)) {
+                    navigate('/hospital-dashboard');
+                } else {
+                    navigate('/dashboard');
+                }
             }
-
-            const response = await register(userData);
-
-            // Redirect based on user role
-            const redirectPath = form.role === "HOSPITAL_SIGNUP" ? '/hospital-dashboard' :
-                response.user.role === 'CIVILIAN' ? '/dashboard' : '/admin/dashboard';
-            navigate(redirectPath);
-
         } catch (error) {
             const errorData = error.response?.data || {};
             const newErrors = {};
@@ -278,76 +278,40 @@ const Register = () => {
 
           <form onSubmit={handleSubmit}>
 
-              {/* USERNAME */}
-            <div className="input-group">
-              <input
-                type="text"
-                name="username"
-                placeholder=" "
-                value={form.username}
-                onChange={handleChange}
-                required
-              />
-                <label>Username</label>
-                {errors.username && <span className="error-message">{errors.username}</span>}
-            </div>
+              {/* USER-ONLY FIELDS — hidden during hospital signup */}
+              {form.role !== "HOSPITAL_SIGNUP" && (
+                  <>
+                      <div className="input-group">
+                          <input type="text" name="username" placeholder=" " value={form.username} onChange={handleChange} required />
+                          <label>Username</label>
+                          {errors.username && <span className="error-message">{errors.username}</span>}
+                      </div>
 
-              {/* FIRST NAME */}
-              <div className="input-group">
-                  <input
-                      type="text"
-                      name="first_name"
-                      placeholder=" "
-                      value={form.first_name}
-                      onChange={handleChange}
-                      required
-                  />
-                  <label>First Name</label>
-                  {errors.first_name && <span className="error-message">{errors.first_name}</span>}
-              </div>
+                      <div className="input-group">
+                          <input type="text" name="first_name" placeholder=" " value={form.first_name} onChange={handleChange} required />
+                          <label>First Name</label>
+                          {errors.first_name && <span className="error-message">{errors.first_name}</span>}
+                      </div>
 
-              {/* LAST NAME */}
-              <div className="input-group">
-                  <input
-                      type="text"
-                      name="last_name"
-                      placeholder=" "
-                      value={form.last_name}
-                      onChange={handleChange}
-                      required
-                  />
-                  <label>Last Name</label>
-                  {errors.last_name && <span className="error-message">{errors.last_name}</span>}
-            </div>
+                      <div className="input-group">
+                          <input type="text" name="last_name" placeholder=" " value={form.last_name} onChange={handleChange} required />
+                          <label>Last Name</label>
+                          {errors.last_name && <span className="error-message">{errors.last_name}</span>}
+                      </div>
 
-            {/* EMAIL */}
-            <div className="input-group">
-              <input
-                type="email"
-                name="email"
-                placeholder=" "
-                value={form.email}
-                onChange={handleChange}
-                required
-              />
-              <label>Email</label>
-              {errors.email && <span className="error-message">{errors.email}</span>}
-            </div>
+                      <div className="input-group">
+                          <input type="email" name="email" placeholder=" " value={form.email} onChange={handleChange} required />
+                          <label>Email</label>
+                          {errors.email && <span className="error-message">{errors.email}</span>}
+                      </div>
 
-            {/* MOBILE */}
-            <div className="input-group">
-              <input
-                type="tel"
-                name="mobile"
-                placeholder=" "
-                value={form.mobile}
-                onChange={handleChange}
-                maxLength="10"
-                required
-              />
-              <label>Mobile Number</label>
-              {errors.mobile && <span className="error-message">{errors.mobile}</span>}
-            </div>
+                      <div className="input-group">
+                          <input type="tel" name="mobile" placeholder=" " value={form.mobile} onChange={handleChange} maxLength="10" required />
+                          <label>Mobile Number</label>
+                          {errors.mobile && <span className="error-message">{errors.mobile}</span>}
+                      </div>
+                  </>
+              )}
 
             {/* PASSWORD */}
             <div className="input-group">
