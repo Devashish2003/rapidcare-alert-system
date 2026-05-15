@@ -64,9 +64,14 @@ const Login = () => {
     try {
       const response = await login(form.email, form.password);
 
-      // Redirect based on user role
-      const redirectPath = response.user.role === 'CIVILIAN' ? '/dashboard' : '/admin/dashboard';
-      navigate(redirectPath);
+      const role = response.user.role;
+      if (role === 'AMBULANCE_DRIVER' || role === 'PARAMEDIC_ASSISTANT') {
+        navigate('/ambulance');
+      } else if (role === 'DOCTOR' || role === 'PARAMEDIC_STAFF' || role === 'FRONT_DESK') {
+        navigate('/hospital-dashboard');
+      } else {
+        navigate('/dashboard');
+      }
 
     } catch (error) {
       const errorMessage = error.response?.data?.non_field_errors?.[0] ||
