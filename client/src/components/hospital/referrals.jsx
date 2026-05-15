@@ -1,21 +1,13 @@
 import React, {useEffect, useState} from "react";
 import {useNavigate} from "react-router-dom";
+import {useAuth} from "../../contexts/AuthContext";
+import apiService from "../../services/api";
 import "./referrals.css";
 import "./hospitaldashboard.css";
 
-const Navigation = ({activePage}) => {
-    const [user, setUser] = useState(null);
+const Navigation = () => {
+    const {user} = useAuth();
     const navigate = useNavigate();
-
-    useEffect(() => {
-        // Mock user data - replace with actual auth context
-        const userData = {
-            name: "Dr. Sarah Johnson",
-            role: "Hospital Administrator",
-            avatar: "👩‍⚕️"
-        };
-        setUser(userData);
-    }, []);
 
     return (
         <div className="top-header">
@@ -27,11 +19,10 @@ const Navigation = ({activePage}) => {
                      }}/>
                 <div className="brand-section">
                     <span className="brand-name">RapidCare</span>
-                    <span className="hospital-name">City General Hospital</span>
+                    <span className="hospital-name">{user?.profile?.department || 'Hospital Staff'}</span>
                 </div>
             </div>
 
-            {/* NAVIGATION BUTTONS */}
             <div className="nav-buttons">
                 <button className="nav-btn" onClick={() => navigate('/hospital-dashboard')}>Dashboard</button>
                 <button className="nav-btn" onClick={() => navigate('/alerts')}>Alerts</button>
@@ -39,14 +30,13 @@ const Navigation = ({activePage}) => {
                 <button className="nav-btn active" onClick={() => navigate('/referrals')}>Referrals</button>
             </div>
 
-            {/* USER PROFILE */}
             {user && (
                 <div className="user-profile">
-                    <div className="user-info" onClick={() => console.log('Open user profile')}>
-                        <span className="user-avatar">{user.avatar}</span>
+                    <div className="user-info">
+                        <span className="user-avatar">👩‍⚕️</span>
                         <div className="user-details">
-                            <span className="user-name">{user.name}</span>
-                            <span className="user-role">{user.role}</span>
+                            <span className="user-name">{user.first_name || user.username}</span>
+                            <span className="user-role">{user.role_display || user.role}</span>
                         </div>
                         <span className="dropdown-arrow">▼</span>
                     </div>
@@ -57,131 +47,119 @@ const Navigation = ({activePage}) => {
 };
 
 const Referrals = () => {
+    const {user} = useAuth();
     const [activeTab, setActiveTab] = useState("incoming");
     const [showCreateForm, setShowCreateForm] = useState(false);
+    const [incoming, setIncoming] = useState([]);
+    const [outgoing, setOutgoing] = useState([]);
+    const [hospitals, setHospitals] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
 
     const [formData, setFormData] = useState({
-        patientName: "",
-        age: "",
-        receivingHospital: "",
-        requiredSpecialty: "",
-        currentDiagnosis: "",
-        reasonForReferral: "",
-        medicalDocuments: null,
+        patient_name: "",
+        patient_age: "",
+        receiving_hospital_id: "",
+        required_specialty: "",
+        current_diagnosis: "",
+        reason_for_referral: "",
     });
 
-    // MOCK DATA (replace with API)
-    const [incoming, setIncoming] = useState([
-        {
-            id: 1,
-            patient: "David Wilson",
-            age: 52,
-            status: "Pending",
-            from: "Metro Medical Center",
-            condition: "Complex cardiac surgery required",
-            reason: "Specialized cardiothoracic surgery needed",
-            documents: 3,
-            time: "15 mins ago",
-        },
-        {
-            id: 2,
-            patient: "Emma Davis",
-            age: 34,
-            status: "Accepted",
-            from: "Community Hospital",
-            condition: "Neurosurgery consultation",
-            reason: "Brain tumor requiring immediate surgery",
-            documents: 5,
-            time: "2 hours ago",
-        },
-    ]);
+    const hospitalId = user?.profile?.hospital_id;
 
-    const [outgoing, setOutgoing] = useState([
-        {
-            id: 3,
-            hospital: "City Care Hospital",
-            reason: "ICU Full",
-            status: "Accepted",
-        },
-    ]);
+    useEffect(() => {
+        if (hospitalId) {
+            fetchData();
+        } else {
+            setLoading(false);
+        }
+    }, [hospitalId]);
 
-    // ACTIONS
-    const handleAccept = (id) => {
-        setIncoming(incoming.map(referral =>
-            referral.id === id
-                ? {...referral, status: "Accepted"}
-                : referral
-        ));
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const [incomingData, outgoingData, hospitalsData] = await Promise.all([
+                apiService.getPatientReferrals(hospitalId, 'incoming'),
+                apiService.getPatientReferrals(hospitalId, 'outgoing'),
+                apiService.getHospitals(),
+            ]);
+            setIncoming(Array.isArray(incomingData) ? incomingData : incomingData.results || []);
+            setOutgoing(Array.isArray(outgoingData) ? outgoingData : outgoingData.results || []);
+            setHospitals(Array.isArray(hospitalsData) ? hospitalsData : hospitalsData.results || []);
+        } catch (err) {
+            console.error('Error fetching referrals:', err);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleReject = (id) => {
-        setIncoming(incoming.filter(referral => referral.id !== id));
+    const handleAccept = async (id) => {
+        try {
+            const updated = await apiService.acceptReferral(id);
+            setIncoming(incoming.map(r => r.id === id ? updated : r));
+        } catch (err) {
+            console.error('Error accepting referral:', err);
+        }
     };
 
-    const handleCreateReferral = () => {
-        setShowCreateForm(true);
-    };
-
-    const handleCancelReferral = () => {
-        setShowCreateForm(false);
-        setFormData({
-            patientName: "",
-            age: "",
-            receivingHospital: "",
-            requiredSpecialty: "",
-            currentDiagnosis: "",
-            reasonForReferral: "",
-            medicalDocuments: null,
-        });
+    const handleReject = async (id) => {
+        try {
+            const updated = await apiService.rejectReferral(id);
+            setIncoming(incoming.map(r => r.id === id ? updated : r));
+        } catch (err) {
+            console.error('Error rejecting referral:', err);
+        }
     };
 
     const handleFormChange = (field, value) => {
-        setFormData(prev => ({
-            ...prev,
-            [field]: value
-        }));
+        setFormData(prev => ({...prev, [field]: value}));
     };
 
-    const handleFileChange = (e) => {
-        setFormData(prev => ({
-            ...prev,
-            medicalDocuments: e.target.files[0]
-        }));
-    };
-
-    const handleSendReferral = (e) => {
+    const handleSendReferral = async (e) => {
         e.preventDefault();
-        console.log("Send Referral:", formData);
-        // Add API call here
-        setShowCreateForm(false);
-        setFormData({
-            patientName: "",
-            age: "",
-            receivingHospital: "",
-            requiredSpecialty: "",
-            currentDiagnosis: "",
-            reasonForReferral: "",
-            medicalDocuments: null,
-        });
+        try {
+            setSubmitting(true);
+            await apiService.createReferral({
+                ...formData,
+                patient_age: parseInt(formData.patient_age),
+                referring_hospital_id: hospitalId,
+            });
+            setShowCreateForm(false);
+            setFormData({
+                patient_name: "", patient_age: "", receiving_hospital_id: "",
+                required_specialty: "", current_diagnosis: "", reason_for_referral: "",
+            });
+            fetchData();
+        } catch (err) {
+            console.error('Error creating referral:', err);
+        } finally {
+            setSubmitting(false);
+        }
     };
+
+    if (loading) return <div className="dashboard-container">Loading...</div>;
 
     return (
         <div className="dashboard-container">
-            <Navigation activePage="referrals"/>
+            <Navigation/>
 
             <div className="referrals-container">
-                {/* HEADER */}
                 <div className="page-header">
                     <div className="page-title">
                         <h2>Patient Referrals</h2>
                         <p>Manage patient transfers between hospitals</p>
                     </div>
-                    <button className="create-btn" onClick={handleCreateReferral}>
-                        Create Referral
-                    </button>
+                    {hospitalId && (
+                        <button className="create-btn" onClick={() => setShowCreateForm(true)}>
+                            Create Referral
+                        </button>
+                    )}
                 </div>
 
-                {/* TABS */}
+                {!hospitalId && (
+                    <p style={{color: '#dc2626', padding: '1rem'}}>No hospital assigned to your profile.</p>
+                )}
+
                 <div className="tabs">
                     <button
                         className={`tab ${activeTab === "incoming" ? "active" : ""}`}
@@ -197,44 +175,42 @@ const Referrals = () => {
                     </button>
                 </div>
 
-                {/* CONTENT */}
                 <div className="tab-content">
                     {activeTab === "incoming" && (
                         <div className="referrals-list">
+                            {incoming.length === 0 && <p style={{color: '#6b7280'}}>No incoming referrals.</p>}
                             {incoming.map((referral) => (
                                 <div key={referral.id} className="referral-card">
                                     <div className="referral-header">
                                         <div className="patient-info">
-                                            <h4>{referral.patient}, {referral.age}</h4>
-                                            <span className={`status-badge ${referral.status.toLowerCase()}`}>
-                        {referral.status}
-                      </span>
+                                            <h4>{referral.patient_name}, {referral.patient_age}</h4>
+                                            <span className={`status-badge ${referral.status?.toLowerCase()}`}>
+                                                {referral.status}
+                                            </span>
                                         </div>
-                                        <span className="time">{referral.time}</span>
+                                        <span className="time">{referral.created_at ? new Date(referral.created_at).toLocaleString() : ''}</span>
                                     </div>
 
                                     <div className="referral-details">
-                                        <p><strong>From:</strong> {referral.from}</p>
-                                        <p><strong>Condition:</strong> {referral.condition}</p>
-                                        <p><strong>Reason:</strong> {referral.reason}</p>
-                                        <p className="documents">
-                                            <strong>{referral.documents} medical documents attached</strong>
-                                            <a href="#" className="view-docs">View Documents</a>
-                                        </p>
+                                        <p><strong>From:</strong> {referral.referring_hospital_name}</p>
+                                        <p><strong>Condition:</strong> {referral.current_diagnosis}</p>
+                                        <p><strong>Reason:</strong> {referral.reason_for_referral}</p>
+                                        <p><strong>Specialty needed:</strong> {referral.required_specialty}</p>
+                                        {referral.documents_count > 0 && (
+                                            <p className="documents">
+                                                <strong>{referral.documents_count} medical documents attached</strong>
+                                            </p>
+                                        )}
                                     </div>
 
-                                    {referral.status === "Pending" && (
+                                    {referral.status === "pending" && (
                                         <div className="referral-actions">
-                                            <button className="btn reject" onClick={() => handleReject(referral.id)}>
-                                                Reject
-                                            </button>
-                                            <button className="btn accept" onClick={() => handleAccept(referral.id)}>
-                                                Accept Referral
-                                            </button>
+                                            <button className="btn reject" onClick={() => handleReject(referral.id)}>Reject</button>
+                                            <button className="btn accept" onClick={() => handleAccept(referral.id)}>Accept Referral</button>
                                         </div>
                                     )}
 
-                                    {referral.status === "Accepted" && (
+                                    {referral.status === "accepted" && (
                                         <div className="accepted-message">
                                             Referral accepted • Patient transfer scheduled
                                         </div>
@@ -246,19 +222,21 @@ const Referrals = () => {
 
                     {activeTab === "outgoing" && (
                         <div className="referrals-list">
+                            {outgoing.length === 0 && <p style={{color: '#6b7280'}}>No outgoing referrals.</p>}
                             {outgoing.map((referral) => (
                                 <div key={referral.id} className="referral-card">
                                     <div className="referral-header">
                                         <div className="hospital-info">
-                                            <h4>{referral.hospital}</h4>
-                                            <span className={`status-badge ${referral.status.toLowerCase()}`}>
-                        {referral.status}
-                      </span>
+                                            <h4>{referral.receiving_hospital_name}</h4>
+                                            <span className={`status-badge ${referral.status?.toLowerCase()}`}>
+                                                {referral.status}
+                                            </span>
                                         </div>
                                     </div>
-
                                     <div className="referral-details">
-                                        <p><strong>Reason:</strong> {referral.reason}</p>
+                                        <p><strong>Patient:</strong> {referral.patient_name}</p>
+                                        <p><strong>Reason:</strong> {referral.reason_for_referral}</p>
+                                        <p><strong>Specialty:</strong> {referral.required_specialty}</p>
                                     </div>
                                 </div>
                             ))}
@@ -267,15 +245,12 @@ const Referrals = () => {
                 </div>
             </div>
 
-            {/* CREATE REFERRAL MODAL */}
             {showCreateForm && (
                 <div className="modal-overlay">
                     <div className="modal-content">
                         <div className="modal-header">
                             <h3>Create New Referral</h3>
-                            <button className="close-btn" onClick={handleCancelReferral}>
-                                ×
-                            </button>
+                            <button className="close-btn" onClick={() => setShowCreateForm(false)}>×</button>
                         </div>
 
                         <form className="referral-form" onSubmit={handleSendReferral}>
@@ -284,18 +259,17 @@ const Referrals = () => {
                                     <label>Patient Name</label>
                                     <input
                                         type="text"
-                                        value={formData.patientName}
-                                        onChange={(e) => handleFormChange("patientName", e.target.value)}
+                                        value={formData.patient_name}
+                                        onChange={(e) => handleFormChange("patient_name", e.target.value)}
                                         required
                                     />
                                 </div>
-
                                 <div className="form-group">
                                     <label>Age</label>
                                     <input
-                                        type="text"
-                                        value={formData.age}
-                                        onChange={(e) => handleFormChange("age", e.target.value)}
+                                        type="number"
+                                        value={formData.patient_age}
+                                        onChange={(e) => handleFormChange("patient_age", e.target.value)}
                                         required
                                     />
                                 </div>
@@ -305,23 +279,22 @@ const Referrals = () => {
                                 <div className="form-group">
                                     <label>Receiving Hospital</label>
                                     <select
-                                        value={formData.receivingHospital}
-                                        onChange={(e) => handleFormChange("receivingHospital", e.target.value)}
+                                        value={formData.receiving_hospital_id}
+                                        onChange={(e) => handleFormChange("receiving_hospital_id", e.target.value)}
                                         required
                                     >
                                         <option value="">Select Hospital</option>
-                                        <option value="Metro Medical Center">Metro Medical Center</option>
-                                        <option value="Community Hospital">Community Hospital</option>
-                                        <option value="City Care Hospital">City Care Hospital</option>
-                                        <option value="St. Mary's Hospital">St. Mary's Hospital</option>
+                                        {hospitals.filter(h => h.id !== hospitalId).map(h => (
+                                            <option key={h.id} value={h.id}>{h.name}</option>
+                                        ))}
                                     </select>
                                 </div>
 
                                 <div className="form-group">
                                     <label>Required Specialty</label>
                                     <select
-                                        value={formData.requiredSpecialty}
-                                        onChange={(e) => handleFormChange("requiredSpecialty", e.target.value)}
+                                        value={formData.required_specialty}
+                                        onChange={(e) => handleFormChange("required_specialty", e.target.value)}
                                         required
                                     >
                                         <option value="">Select Specialty</option>
@@ -337,8 +310,8 @@ const Referrals = () => {
                             <div className="form-group">
                                 <label>Current Diagnosis</label>
                                 <textarea
-                                    value={formData.currentDiagnosis}
-                                    onChange={(e) => handleFormChange("currentDiagnosis", e.target.value)}
+                                    value={formData.current_diagnosis}
+                                    onChange={(e) => handleFormChange("current_diagnosis", e.target.value)}
                                     rows="3"
                                     required
                                 />
@@ -347,33 +320,17 @@ const Referrals = () => {
                             <div className="form-group">
                                 <label>Reason for Referral</label>
                                 <textarea
-                                    value={formData.reasonForReferral}
-                                    onChange={(e) => handleFormChange("reasonForReferral", e.target.value)}
+                                    value={formData.reason_for_referral}
+                                    onChange={(e) => handleFormChange("reason_for_referral", e.target.value)}
                                     rows="3"
                                     required
                                 />
                             </div>
 
-                            <div className="form-group">
-                                <label>Upload Medical Documents</label>
-                                <div className="file-upload">
-                                    <input
-                                        type="file"
-                                        onChange={handleFileChange}
-                                        accept=".pdf,.doc,.doc,.jpg,.png"
-                                    />
-                                    {formData.medicalDocuments && (
-                                        <span className="file-name">{formData.medicalDocuments.name}</span>
-                                    )}
-                                </div>
-                            </div>
-
                             <div className="form-actions">
-                                <button type="button" className="btn cancel" onClick={handleCancelReferral}>
-                                    Cancel
-                                </button>
-                                <button type="submit" className="btn primary">
-                                    Send Referral
+                                <button type="button" className="btn cancel" onClick={() => setShowCreateForm(false)}>Cancel</button>
+                                <button type="submit" className="btn primary" disabled={submitting}>
+                                    {submitting ? 'Sending...' : 'Send Referral'}
                                 </button>
                             </div>
                         </form>

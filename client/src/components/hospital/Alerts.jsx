@@ -1,21 +1,13 @@
 import React, {useEffect, useState} from "react";
 import {useNavigate} from "react-router-dom";
+import {useAuth} from "../../contexts/AuthContext";
+import apiService from "../../services/api";
 import "./alerts.css";
 import "./hospitaldashboard.css";
 
 const Navigation = ({activePage}) => {
-    const [user, setUser] = useState(null);
+    const {user} = useAuth();
     const navigate = useNavigate();
-
-    useEffect(() => {
-        // Mock user data - replace with actual auth context
-        const userData = {
-            name: "Dr. Sarah Johnson",
-            role: "Hospital Administrator",
-            avatar: "👩‍⚕️"
-        };
-        setUser(userData);
-    }, []);
 
     return (
         <div className="top-header">
@@ -27,11 +19,10 @@ const Navigation = ({activePage}) => {
                      }}/>
                 <div className="brand-section">
                     <span className="brand-name">RapidCare</span>
-                    <span className="hospital-name">City General Hospital</span>
+                    <span className="hospital-name">{user?.profile?.department || 'Hospital Staff'}</span>
                 </div>
             </div>
 
-            {/* NAVIGATION BUTTONS */}
             <div className="nav-buttons">
                 <button className="nav-btn" onClick={() => navigate('/hospital-dashboard')}>Dashboard</button>
                 <button className="nav-btn active" onClick={() => navigate('/alerts')}>Alerts</button>
@@ -39,14 +30,13 @@ const Navigation = ({activePage}) => {
                 <button className="nav-btn" onClick={() => navigate('/referrals')}>Referrals</button>
             </div>
 
-            {/* USER PROFILE */}
             {user && (
                 <div className="user-profile">
-                    <div className="user-info" onClick={() => console.log('Open user profile')}>
-                        <span className="user-avatar">{user.avatar}</span>
+                    <div className="user-info">
+                        <span className="user-avatar">👩‍⚕️</span>
                         <div className="user-details">
-                            <span className="user-name">{user.name}</span>
-                            <span className="user-role">{user.role}</span>
+                            <span className="user-name">{user.first_name || user.username}</span>
+                            <span className="user-role">{user.role_display || user.role}</span>
                         </div>
                         <span className="dropdown-arrow">▼</span>
                     </div>
@@ -59,16 +49,11 @@ const Navigation = ({activePage}) => {
 const Alert = ({alert, onAcknowledge, onReject}) => {
     return (
         <div className={`alert-card ${alert.priority}`}>
-            {/* HEADER */}
             <div className="alert-header">
                 <div>
-          <span className={`priority-badge ${alert.priority}`}>
-            {alert.priority}
-          </span>
-                    <h4>
-                        {alert.name}, {alert.age} {alert.gender}
-                    </h4>
-                    <p className="alert-description">{alert.case}</p>
+                    <span className={`priority-badge ${alert.priority}`}>{alert.priority}</span>
+                    <h4>{alert.patient_name}, {alert.patient_age} {alert.patient_gender}</h4>
+                    <p className="alert-description">{alert.case_description}</p>
                 </div>
 
                 <div className="alert-status">
@@ -77,120 +62,89 @@ const Alert = ({alert, onAcknowledge, onReject}) => {
                 </div>
             </div>
 
-            {/* INFO ROW */}
             <div className="alert-info">
                 <div>
                     <p className="label">ETA</p>
                     <strong>{alert.eta}</strong>
                 </div>
-
                 <div>
                     <p className="label">Distance</p>
                     <strong>{alert.distance}</strong>
                 </div>
-
                 <div>
                     <p className="label">Ambulance</p>
-                    <strong>{alert.ambulanceId}</strong>
+                    <strong>{alert.ambulance_id}</strong>
                 </div>
             </div>
 
-            {/* TAGS */}
             <div className="alert-tags">
-                {alert.tags.map((tag, index) => (
-                    <span key={index} className="tag">
-            {tag}
-          </span>
+                {(alert.tags || []).map((tag, index) => (
+                    <span key={index} className="tag">{tag}</span>
                 ))}
             </div>
 
-            {/* ACTIONS */}
-            <div className="alert-actions">
-                <button className="btn secondary">View Details</button>
-
-                <button
-                    className="btn success"
-                    onClick={() => onAcknowledge(alert.id)}
-                >
-                    Acknowledge
-                </button>
-
-                <button
-                    className="btn danger"
-                    onClick={() => onReject(alert.id)}
-                >
-                    Cannot Accept
-                </button>
-            </div>
+            {alert.status === 'pending' && (
+                <div className="alert-actions">
+                    <button className="btn secondary">View Details</button>
+                    <button className="btn success" onClick={() => onAcknowledge(alert.id)}>Acknowledge</button>
+                    <button className="btn danger" onClick={() => onReject(alert.id)}>Cannot Accept</button>
+                </div>
+            )}
         </div>
     );
 };
 
 const Alerts = () => {
-    const [alerts, setAlerts] = useState([
-        {
-            id: 1,
-            name: "John Doe",
-            age: 45,
-            gender: "Male",
-            case: "Chest pain - suspected heart attack",
-            priority: "high",
-            status: "Pending",
-            time: "2 mins ago",
-            eta: "5 mins",
-            distance: "2.3 km",
-            ambulanceId: "AMB-001",
-            tags: ["Cardiac", "Emergency", "Adult"]
-        },
-        {
-            id: 2,
-            name: "Jane Smith",
-            age: 32,
-            gender: "Female",
-            case: "Motor vehicle accident - multiple injuries",
-            priority: "medium",
-            status: "Pending",
-            time: "5 mins ago",
-            eta: "8 mins",
-            distance: "3.7 km",
-            ambulanceId: "AMB-002",
-            tags: ["Trauma", "Emergency", "Adult"]
-        },
-        {
-            id: 3,
-            name: "Robert Johnson",
-            age: 67,
-            gender: "Male",
-            case: "Difficulty breathing - COPD exacerbation",
-            priority: "low",
-            status: "Pending",
-            time: "8 mins ago",
-            eta: "12 mins",
-            distance: "5.1 km",
-            ambulanceId: "AMB-003",
-            tags: ["Respiratory", "Non-Emergency", "Senior"]
-        }
-    ]);
+    const {user} = useAuth();
+    const [alerts, setAlerts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
 
-    const handleAcknowledge = (alertId) => {
-        setAlerts(alerts.map(alert =>
-            alert.id === alertId
-                ? {...alert, status: "Acknowledged"}
-                : alert
-        ));
+    const hospitalId = user?.profile?.hospital_id;
+
+    useEffect(() => {
+        if (hospitalId) {
+            fetchAlerts();
+        } else {
+            setLoading(false);
+        }
+    }, [hospitalId]);
+
+    const fetchAlerts = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const data = await apiService.getHospitalAlerts(hospitalId);
+            setAlerts(Array.isArray(data) ? data : data.results || []);
+        } catch (err) {
+            setError('Failed to load alerts. Please try again.');
+            console.error('Error fetching alerts:', err);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleReject = (alertId) => {
-        setAlerts(alerts.filter(alert => alert.id !== alertId));
+    const handleAcknowledge = async (alertId) => {
+        try {
+            const updated = await apiService.acknowledgeAlert(alertId);
+            setAlerts(alerts.map(a => a.id === alertId ? updated : a));
+        } catch (err) {
+            console.error('Error acknowledging alert:', err);
+        }
     };
 
-    const handleSearch = (e) => {
-        setSearchTerm(e.target.value);
+    const handleReject = async (alertId) => {
+        try {
+            const updated = await apiService.rejectAlert(alertId);
+            setAlerts(alerts.map(a => a.id === alertId ? updated : a));
+        } catch (err) {
+            console.error('Error rejecting alert:', err);
+        }
     };
 
     const filteredAlerts = alerts.filter(alert =>
-        alert.name.toLowerCase().includes(searchTerm.toLowerCase())
+        alert.patient_name?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
@@ -204,25 +158,32 @@ const Alerts = () => {
                         <div className="search-bar">
                             <input
                                 type="text"
-                                placeholder="Search by applicant name..."
+                                placeholder="Search by patient name..."
                                 value={searchTerm}
-                                onChange={handleSearch}
+                                onChange={(e) => setSearchTerm(e.target.value)}
                                 className="search-input"
                             />
                         </div>
                     </div>
                     <div className="alerts-stats">
-            <span className="stat-item">
-              <strong>{alerts.filter(a => a.priority === 'high').length}</strong> High Priority
-            </span>
                         <span className="stat-item">
-              <strong>{alerts.filter(a => a.priority === 'medium').length}</strong> Medium Priority
-            </span>
+                            <strong>{alerts.filter(a => a.priority === 'high').length}</strong> High Priority
+                        </span>
                         <span className="stat-item">
-              <strong>{alerts.filter(a => a.priority === 'low').length}</strong> Low Priority
-            </span>
+                            <strong>{alerts.filter(a => a.priority === 'medium').length}</strong> Medium Priority
+                        </span>
+                        <span className="stat-item">
+                            <strong>{alerts.filter(a => a.priority === 'low').length}</strong> Low Priority
+                        </span>
                     </div>
                 </div>
+
+                {!hospitalId && (
+                    <p style={{color: '#dc2626', padding: '1rem'}}>No hospital assigned to your profile.</p>
+                )}
+
+                {loading && <p>Loading alerts...</p>}
+                {error && <p style={{color: '#dc2626'}}>{error}</p>}
 
                 <div className="alerts-list">
                     {filteredAlerts.map(alert => (
@@ -235,7 +196,7 @@ const Alerts = () => {
                     ))}
                 </div>
 
-                {filteredAlerts.length === 0 && (
+                {!loading && filteredAlerts.length === 0 && (
                     <div className="no-alerts">
                         <p>{searchTerm ? `No alerts found for "${searchTerm}"` : "No active alerts at this time."}</p>
                     </div>

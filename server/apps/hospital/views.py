@@ -289,12 +289,13 @@ class DashboardViewSet(viewsets.ViewSet):
 
         today = timezone.now().date()
 
-        # Get emergency alerts stats
         alerts = EmergencyAlert.objects.filter(receiving_hospital_id=hospital_id)
         active_alerts = alerts.filter(status='pending').count()
         todays_emergencies = alerts.filter(created_at__date=today).count()
+        high_priority_alerts = alerts.filter(priority='high', status='pending').count()
+        medium_priority_alerts = alerts.filter(priority='medium', status='pending').count()
+        low_priority_alerts = alerts.filter(priority='low', status='pending').count()
 
-        # Get department stats
         departments = Department.objects.filter(hospital_id=hospital_id, is_active=True)
         available_beds = departments.aggregate(total=Sum('available_beds'))['total'] or 0
         doctors_on_duty = departments.aggregate(total=Sum('doctors_on_duty'))['total'] or 0
@@ -304,6 +305,9 @@ class DashboardViewSet(viewsets.ViewSet):
             'available_beds': available_beds,
             'doctors_on_duty': doctors_on_duty,
             'todays_emergencies': todays_emergencies,
+            'high_priority_alerts': high_priority_alerts,
+            'medium_priority_alerts': medium_priority_alerts,
+            'low_priority_alerts': low_priority_alerts,
         }
 
         serializer = DashboardStatsSerializer(stats)

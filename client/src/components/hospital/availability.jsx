@@ -1,21 +1,13 @@
 import React, {useEffect, useState} from "react";
 import {useNavigate} from "react-router-dom";
+import {useAuth} from "../../contexts/AuthContext";
+import apiService from "../../services/api";
 import "./availability.css";
 import "./hospitaldashboard.css";
 
-const Navigation = ({activePage}) => {
-    const [user, setUser] = useState(null);
+const Navigation = () => {
+    const {user} = useAuth();
     const navigate = useNavigate();
-
-    useEffect(() => {
-        // Mock user data - replace with actual auth context
-        const userData = {
-            name: "Dr. Sarah Johnson",
-            role: "Hospital Administrator",
-            avatar: "👩‍⚕️"
-        };
-        setUser(userData);
-    }, []);
 
     return (
         <div className="top-header">
@@ -27,11 +19,10 @@ const Navigation = ({activePage}) => {
                      }}/>
                 <div className="brand-section">
                     <span className="brand-name">RapidCare</span>
-                    <span className="hospital-name">City General Hospital</span>
+                    <span className="hospital-name">{user?.profile?.department || 'Hospital Staff'}</span>
                 </div>
             </div>
 
-            {/* NAVIGATION BUTTONS */}
             <div className="nav-buttons">
                 <button className="nav-btn" onClick={() => navigate('/hospital-dashboard')}>Dashboard</button>
                 <button className="nav-btn" onClick={() => navigate('/alerts')}>Alerts</button>
@@ -39,14 +30,13 @@ const Navigation = ({activePage}) => {
                 <button className="nav-btn" onClick={() => navigate('/referrals')}>Referrals</button>
             </div>
 
-            {/* USER PROFILE */}
             {user && (
                 <div className="user-profile">
-                    <div className="user-info" onClick={() => console.log('Open user profile')}>
-                        <span className="user-avatar">{user.avatar}</span>
+                    <div className="user-info">
+                        <span className="user-avatar">👩‍⚕️</span>
                         <div className="user-details">
-                            <span className="user-name">{user.name}</span>
-                            <span className="user-role">{user.role}</span>
+                            <span className="user-name">{user.first_name || user.username}</span>
+                            <span className="user-role">{user.role_display || user.role}</span>
                         </div>
                         <span className="dropdown-arrow">▼</span>
                     </div>
@@ -57,81 +47,146 @@ const Navigation = ({activePage}) => {
 };
 
 const Availability = () => {
-    const [departments, setDepartments] = useState([
-        {name: "Cardiology", beds: 8, doctors: 5, active: true},
-        {name: "ICU", beds: 2, doctors: 3, active: true},
-        {name: "Emergency", beds: 12, doctors: 6, active: true},
-        {name: "Orthopedics", beds: 15, doctors: 4, active: true},
-        {name: "Neurology", beds: 6, doctors: 3, active: false},
-    ]);
+    const {user} = useAuth();
+    const [departments, setDepartments] = useState([]);
+    const [blood, setBlood] = useState([]);
+    const [equipment, setEquipment] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [saveSuccess, setSaveSuccess] = useState(false);
 
-    const [blood, setBlood] = useState([
-        {type: "A+", units: 25},
-        {type: "A-", units: 12},
-        {type: "B+", units: 18},
-        {type: "B-", units: 8},
-        {type: "O+", units: 30},
-        {type: "O-", units: 15},
-        {type: "AB+", units: 10},
-        {type: "AB-", units: 5},
-    ]);
+    const hospitalId = user?.profile?.hospital_id;
 
-    const [equipment, setEquipment] = useState({
-        ventilators: true,
-        defibrillators: true,
-        ct: true,
-        mri: true,
-        xray: true,
-        dialysis: true,
-    });
+    useEffect(() => {
+        if (hospitalId) {
+            fetchData();
+        } else {
+            setLoading(false);
+        }
+    }, [hospitalId]);
+
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const [deptsData, bloodData, equipData] = await Promise.all([
+                apiService.getDepartments(hospitalId),
+                apiService.getBloodInventory(hospitalId),
+                apiService.getEquipment(hospitalId),
+            ]);
+            setDepartments(Array.isArray(deptsData) ? deptsData : deptsData.results || []);
+            setBlood(Array.isArray(bloodData) ? bloodData : bloodData.results || []);
+            setEquipment(Array.isArray(equipData) ? equipData : equipData.results || []);
+        } catch (err) {
+            console.error('Error fetching availability data:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeptChange = (index, field, value) => {
+        setDepartments(depts => depts.map((d, i) => i === index ? {...d, [field]: value} : d));
+    };
+
+    const handleBloodChange = (index, value) => {
+        setBlood(b => b.map((item, i) => i === index ? {...item, units_available: parseInt(value) || 0} : item));
+    };
+
+    const handleEquipmentToggle = async (equip) => {
+        try {
+            const updated = await apiService.toggleEquipment(equip.id, !equip.is_available);
+            setEquipment(eq => eq.map(e => e.id === equip.id ? updated : e));
+        } catch (err) {
+            console.error('Error toggling equipment:', err);
+        }
+    };
+
+    const handleSave = async () => {
+        try {
+            setSaving(true);
+            await Promise.all([
+                ...departments.map(d => apiService.updateDepartmentAvailability(d.id, {
+                    available_beds: d.available_beds,
+                    doctors_on_duty: d.doctors_on_duty,
+                    is_active: d.is_active,
+                })),
+                ...blood.map(b => apiService.updateBloodInventory(b.id, {
+                    units_available: b.units_available,
+                })),
+            ]);
+            setSaveSuccess(true);
+            setTimeout(() => setSaveSuccess(false), 3000);
+        } catch (err) {
+            console.error('Error saving changes:', err);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (loading) return <div className="dashboard-container">Loading...</div>;
+
+    if (!hospitalId) {
+        return (
+            <div className="dashboard-container">
+                <p style={{padding: '2rem', color: '#dc2626'}}>No hospital assigned to your profile.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="dashboard-container">
-            <Navigation activePage="availability"/>
+            <Navigation/>
 
             <div className="availability-container">
-                {/* HEADER */}
                 <div className="header">
                     <div>
                         <h2>Manage Availability</h2>
                         <p>Update real-time hospital capacity and resources</p>
                     </div>
-                    <button className="primary-btn">Save Changes</button>
+                    <button className="primary-btn" onClick={handleSave} disabled={saving}>
+                        {saving ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save Changes'}
+                    </button>
                 </div>
 
-                {/* REALTIME */}
                 <div className="realtime-card">
                     <div>
                         <strong>Real-time Updates Active</strong>
                         <p>Last synced just now</p>
                     </div>
-                    <button className="secondary-btn">Sync Now</button>
+                    <button className="secondary-btn" onClick={fetchData}>Sync Now</button>
                 </div>
 
                 {/* DEPARTMENTS */}
                 <div className="section">
                     <h3>Department Availability</h3>
-
                     {departments.map((dept, index) => (
-                        <div key={index} className="dept-card">
+                        <div key={dept.id || index} className="dept-card">
                             <div className="dept-header">
                                 <h4>{dept.name}</h4>
-
                                 <label className="switch">
-                                    <input type="checkbox" checked={dept.active} readOnly/>
+                                    <input
+                                        type="checkbox"
+                                        checked={dept.is_active}
+                                        onChange={(e) => handleDeptChange(index, 'is_active', e.target.checked)}
+                                    />
                                     <span className="slider"></span>
                                 </label>
                             </div>
-
                             <div className="dept-inputs">
                                 <div>
                                     <label>Available Beds</label>
-                                    <input type="number" value={dept.beds} readOnly/>
+                                    <input
+                                        type="number"
+                                        value={dept.available_beds}
+                                        onChange={(e) => handleDeptChange(index, 'available_beds', parseInt(e.target.value) || 0)}
+                                    />
                                 </div>
-
                                 <div>
                                     <label>Doctors On Duty</label>
-                                    <input type="number" value={dept.doctors} readOnly/>
+                                    <input
+                                        type="number"
+                                        value={dept.doctors_on_duty}
+                                        onChange={(e) => handleDeptChange(index, 'doctors_on_duty', parseInt(e.target.value) || 0)}
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -141,27 +196,23 @@ const Availability = () => {
                 {/* BLOOD */}
                 <div className="section">
                     <h3>Blood Bank Inventory</h3>
-
                     <div className="blood-grid">
                         {blood.map((b, index) => (
-                            <div key={index} className="blood-card">
-                                <h4>{b.type}</h4>
-                                <p>{b.units} Units Available</p>
-                                <span
-                                    className={
-                                        b.units > 20
-                                            ? "status good"
-                                            : b.units > 10
-                                                ? "status medium"
-                                                : "status low"
-                                    }
-                                >
-                {b.units > 20
-                    ? "In Stock"
-                    : b.units > 10
-                        ? "Medium Stock"
-                        : "Low Stock"}
-              </span>
+                            <div key={b.id || index} className="blood-card">
+                                <h4>{b.blood_type}</h4>
+                                <input
+                                    type="number"
+                                    value={b.units_available}
+                                    onChange={(e) => handleBloodChange(index, e.target.value)}
+                                    style={{width: '60px', textAlign: 'center'}}
+                                />
+                                <p>Units Available</p>
+                                <span className={
+                                    b.units_available > 20 ? "status good" :
+                                    b.units_available > 10 ? "status medium" : "status low"
+                                }>
+                                    {b.units_available > 20 ? "In Stock" : b.units_available > 10 ? "Medium Stock" : "Low Stock"}
+                                </span>
                             </div>
                         ))}
                     </div>
@@ -170,21 +221,24 @@ const Availability = () => {
                 {/* EQUIPMENT */}
                 <div className="section">
                     <h3>Critical Equipment Status</h3>
-
                     <div className="equipment-grid">
-                        {Object.keys(equipment).map((key, index) => (
-                            <div key={index} className="equipment-card">
-                                <span>{key.toUpperCase()}</span>
-
+                        {equipment.map((equip) => (
+                            <div key={equip.id} className="equipment-card">
+                                <span>{equip.equipment_type?.toUpperCase()}</span>
                                 <label className="switch">
-                                    <input type="checkbox" checked={equipment[key]} readOnly/>
+                                    <input
+                                        type="checkbox"
+                                        checked={equip.is_available}
+                                        onChange={() => handleEquipmentToggle(equip)}
+                                    />
                                     <span className="slider"></span>
                                 </label>
                             </div>
                         ))}
                     </div>
-
-                    <button className="primary-btn save-bottom">Save All Changes</button>
+                    <button className="primary-btn save-bottom" onClick={handleSave} disabled={saving}>
+                        {saving ? 'Saving...' : 'Save All Changes'}
+                    </button>
                 </div>
             </div>
         </div>

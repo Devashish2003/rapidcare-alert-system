@@ -164,6 +164,95 @@ class ApiService {
     const response = await this.api.post('/api/ambulance/location-updates/', locationData);
     return response.data;
   }
+
+  // Hospital endpoints
+  async getHospitals() {
+    const response = await this.api.get('/api/hospital/hospitals/');
+    return response.data;
+  }
+
+  async getHospitalDashboardStats(hospitalId) {
+    const response = await this.api.get('/api/hospital/dashboard/stats/', { params: { hospital_id: hospitalId } });
+    return response.data;
+  }
+
+  async getRecentAlerts(hospitalId) {
+    const response = await this.api.get('/api/hospital/dashboard/recent_alerts/', { params: { hospital_id: hospitalId } });
+    return response.data;
+  }
+
+  async getDepartmentStatus(hospitalId) {
+    const response = await this.api.get('/api/hospital/dashboard/department_status/', { params: { hospital_id: hospitalId } });
+    return response.data;
+  }
+
+  async getHospitalAlerts(hospitalId, filters = {}) {
+    const response = await this.api.get('/api/hospital/emergency-alerts/', { params: { hospital_id: hospitalId, ...filters } });
+    return response.data;
+  }
+
+  async acknowledgeAlert(alertId) {
+    const response = await this.api.post(`/api/hospital/emergency-alerts/${alertId}/acknowledge/`);
+    return response.data;
+  }
+
+  async rejectAlert(alertId) {
+    const response = await this.api.post(`/api/hospital/emergency-alerts/${alertId}/reject/`);
+    return response.data;
+  }
+
+  async getDepartments(hospitalId) {
+    const response = await this.api.get('/api/hospital/departments/', { params: { hospital_id: hospitalId } });
+    return response.data;
+  }
+
+  async updateDepartmentAvailability(deptId, data) {
+    const response = await this.api.patch(`/api/hospital/departments/${deptId}/update_availability/`, data);
+    return response.data;
+  }
+
+  async getBloodInventory(hospitalId) {
+    const response = await this.api.get('/api/hospital/blood-inventory/', { params: { hospital_id: hospitalId } });
+    return response.data;
+  }
+
+  async updateBloodInventory(inventoryId, data) {
+    const response = await this.api.patch(`/api/hospital/blood-inventory/${inventoryId}/`, data);
+    return response.data;
+  }
+
+  async getEquipment(hospitalId) {
+    const response = await this.api.get('/api/hospital/equipment/', { params: { hospital_id: hospitalId } });
+    return response.data;
+  }
+
+  async toggleEquipment(equipmentId, isAvailable) {
+    const response = await this.api.patch(`/api/hospital/equipment/${equipmentId}/toggle_availability/`, { is_available: isAvailable });
+    return response.data;
+  }
+
+  async getPatientReferrals(hospitalId, type = null, statusFilter = null) {
+    const params = { hospital_id: hospitalId };
+    if (type) params.type = type;
+    if (statusFilter) params.status = statusFilter;
+    const response = await this.api.get('/api/hospital/patient-referrals/', { params });
+    return response.data;
+  }
+
+  async createReferral(data) {
+    const response = await this.api.post('/api/hospital/patient-referrals/', data);
+    return response.data;
+  }
+
+  async acceptReferral(referralId) {
+    const response = await this.api.post(`/api/hospital/patient-referrals/${referralId}/accept/`);
+    return response.data;
+  }
+
+  async rejectReferral(referralId, notes = '') {
+    const response = await this.api.post(`/api/hospital/patient-referrals/${referralId}/reject/`, { notes });
+    return response.data;
+  }
 }
 
 export default new ApiService();

@@ -34,7 +34,7 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     license_number = models.CharField(max_length=50, null=True, blank=True)
     ambulance_id = models.CharField(max_length=20, null=True, blank=True)
-   # hospital = models.ForeignKey(Hospital, on_delete=models.SET_NULL, null=True, blank=True)
+    hospital_id = models.IntegerField(null=True, blank=True, help_text="ID of the hospital this staff belongs to")
     department = models.CharField(max_length=100, null=True, blank=True)
     experience_years = models.PositiveIntegerField(null=True, blank=True)
     specialization = models.CharField(max_length=100, null=True, blank=True)
