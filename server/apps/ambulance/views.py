@@ -1,18 +1,20 @@
+import uuid
+from datetime import timedelta
+
+from django.contrib.auth import get_user_model
+from django.db.models import Count
+from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.contrib.auth import get_user_model
-from django.db.models import Q, Count
-from django.utils import timezone
-from datetime import timedelta
-import uuid
+from rest_framework.response import Response
+
+from apps.hospital.models import Hospital, Department, BloodInventory, Equipment
 from .models import Ambulance, Emergency, LocationUpdate
 from .serializers import (
     AmbulanceSerializer, EmergencySerializer, EmergencyCreateSerializer,
     LocationUpdateSerializer, AmbulanceDashboardSerializer
 )
-from apps.hospital.models import Hospital, Department, BloodInventory, Equipment
 
 User = get_user_model()
 
@@ -38,12 +40,13 @@ class AmbulanceViewSet(viewsets.ModelViewSet):
             ambulance = self.get_queryset().first()
 
             if not ambulance:
-                # Auto-create an ambulance unit for new drivers on first login
                 if request.user.role in ['AMBULANCE_DRIVER', 'PARAMEDIC_ASSISTANT']:
-                    ambulance = Ambulance.objects.create(
-                        unit_number=f"AMB-{uuid.uuid4().hex[:6].upper()}",
+                    ambulance, _ = Ambulance.objects.get_or_create(
                         driver=request.user,
-                        status='available',
+                        defaults={
+                            'unit_number': f"AMB-{uuid.uuid4().hex[:6].upper()}",
+                            'status': 'available',
+                        },
                     )
                 else:
                     return Response(
