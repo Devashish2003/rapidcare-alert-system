@@ -9,6 +9,8 @@ import HospitalDashboard from './components/hospital/hospitaldashboard';
 import Ambulance from './components/Ambulance/ambulance';
 import NewEmergency from './components/Ambulance/newemergency';
 import HospitalSelection from './components/Ambulance/hospitalselection';
+import Emergencies from './components/Ambulance/Emergencies';
+import AmbulanceSettings from './components/Ambulance/Settings';
 import Alerts from './components/hospital/Alerts';
 import Availability from './components/hospital/availability';
 import Referrals from './components/hospital/referrals';
@@ -88,6 +90,22 @@ function App() {
                   }
               />
               <Route path="/hospitals" element={<Hospitals />} />
+              <Route
+                  path="/emergencies"
+                  element={
+                      <ProtectedRoute>
+                          <Emergencies/>
+                      </ProtectedRoute>
+                  }
+              />
+              <Route
+                  path="/settings"
+                  element={
+                      <ProtectedRoute>
+                          <AmbulanceSettings/>
+                      </ProtectedRoute>
+                  }
+              />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </div>
