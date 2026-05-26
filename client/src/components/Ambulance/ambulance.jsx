@@ -2,11 +2,11 @@ import React, {useEffect, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {useAuth} from "../../contexts/AuthContext";
 import apiService from "../../services/api";
+import AmbulanceHeader from "./AmbulanceHeader";
 import "./ambulance.css";
 
 const Ambulance = () => {
     const {user: authUser} = useAuth();
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [dashboardData, setDashboardData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -64,15 +64,6 @@ const Ambulance = () => {
         }
     };
 
-    const toggleMobileMenu = () => {
-        setIsMobileMenuOpen(!isMobileMenuOpen);
-    };
-
-    const handleNavigation = (path) => {
-        navigate(path);
-        setIsMobileMenuOpen(false);
-    };
-
     const stats = dashboardData?.stats || {};
     const ambulance = dashboardData?.ambulance;
     const activeEmergencies = dashboardData?.active_emergencies || [];
@@ -80,53 +71,10 @@ const Ambulance = () => {
     const nearbyHospitals = dashboardData?.nearby_hospitals || [];
 
     const displayName = authUser?.first_name || authUser?.username || 'Driver';
-    const displayRole = authUser?.role_display || authUser?.role || 'Ambulance Driver';
 
     return (
         <div className="dashboard-container">
-            {/* TOP HEADER WITH LOGO */}
-            <div className="top-header">
-                <div className="left-section">
-                    <div className="logo-section">
-                        <img src="/src/assets/rapidcarelogo.png" alt="RapidCare Logo" className="logo"
-                             onError={(e) => {
-                                 e.target.onerror = null;
-                                 e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='35' viewBox='0 0 40 35'%3E%3Crect width='40' height='35' fill='%23dc2626' rx='6'/%3E%3Ctext x='20' y='23' text-anchor='middle' fill='white' font-family='Arial' font-size='12' font-weight='bold'%3ERC%3C/text%3E%3C/svg%3E";
-                             }}/>
-                        <div className="brand-section">
-                            <span className="brand-name">RapidCare</span>
-                            <span className="ambulance-unit">Unit #{ambulance?.unit_number || 'AMB-0000'}</span>
-                        </div>
-                    </div>
-
-                    {/* NAVIGATION BUTTONS */}
-                    <div className={`nav-buttons ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
-                        <button className="nav-btn active" onClick={() => handleNavigation('/ambulance')}>Dashboard
-                        </button>
-                        <button className="nav-btn" onClick={() => handleNavigation('/emergencies')}>Emergencies
-                        </button>
-                        <button className="nav-btn" onClick={() => handleNavigation('/hospitals')}>Hospitals</button>
-                        <button className="nav-btn" onClick={() => handleNavigation('/settings')}>Settings</button>
-                    </div>
-
-                    {/* HAMBURGER MENU */}
-                    <button className="hamburger-menu" onClick={toggleMobileMenu}>
-                        {isMobileMenuOpen ? '✕' : '☰'}
-                    </button>
-                </div>
-
-                {/* USER PROFILE */}
-                <div className="user-profile">
-                    <div className="user-info">
-                        <span className="user-avatar">🚑</span>
-                        <div className="user-details">
-                            <span className="user-name">{displayName}</span>
-                            <span className="user-role">{displayRole}</span>
-                        </div>
-                        <span className="dropdown-arrow">▼</span>
-                    </div>
-                </div>
-            </div>
+            <AmbulanceHeader activePath="/ambulance" unitNumber={ambulance?.unit_number}/>
             {/* PAGE HEADER */}
             <div className="page-header">
                 <div>
