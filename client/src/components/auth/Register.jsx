@@ -193,10 +193,11 @@ const Register = () => {
 
             // Handle field-specific errors
             Object.keys(errorData).forEach(key => {
+                const formKey = key === 'phone_number' ? 'mobile' : key;
                 if (Array.isArray(errorData[key])) {
-                    newErrors[key] = errorData[key][0];
+                    newErrors[formKey] = errorData[key][0];
                 } else if (typeof errorData[key] === 'string') {
-                    newErrors[key] = errorData[key];
+                    newErrors[formKey] = errorData[key];
                 }
             });
 

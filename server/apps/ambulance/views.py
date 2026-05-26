@@ -2,15 +2,14 @@ import uuid
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
-from django.db.models import Count
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.hospital.models import Hospital, Department, BloodInventory, Equipment
-from apps.users.permissions import IsAmbulanceStaff, IsAmbulanceStaffOrReadOnly
+from apps.hospital.models import Hospital, Department, BloodInventory, Equipment, EmergencyAlert
+from apps.users.permissions import IsAmbulanceStaff
 from .models import Ambulance, Emergency, LocationUpdate
 from .serializers import (
     AmbulanceSerializer, EmergencySerializer, EmergencyCreateSerializer,
@@ -317,10 +316,45 @@ class EmergencyViewSet(viewsets.ModelViewSet):
         if is_backup:
             emergency.backup_hospital = hospital
         else:
+            # Cancel any pending alerts for the previously assigned hospital
+            if emergency.assigned_hospital and emergency.assigned_hospital_id != hospital.id:
+                EmergencyAlert.objects.filter(
+                    ambulance_id=emergency.ambulance.unit_number,
+                    receiving_hospital=emergency.assigned_hospital,
+                    status='pending',
+                ).update(status='completed')
+
             emergency.assigned_hospital = hospital
-        
+
         emergency.save()
-        
+
+        if not is_backup:
+            severity_to_priority = {'critical': 'high', 'high': 'high', 'medium': 'medium', 'low': 'low'}
+            priority = severity_to_priority.get(emergency.severity, 'medium')
+
+            tags = []
+            if emergency.severity in ['high', 'critical']:
+                tags.append('Critical')
+            if emergency.is_diabetic:
+                tags.append('Diabetic')
+            if emergency.is_hypertensive:
+                tags.append('Hypertensive')
+            if emergency.blood_type:
+                tags.append(f'Blood: {emergency.blood_type}')
+
+            EmergencyAlert.objects.create(
+                patient_name=emergency.patient_name,
+                patient_age=emergency.patient_age,
+                patient_gender=emergency.patient_gender,
+                case_description=emergency.condition_description,
+                priority=priority,
+                eta=emergency.eta_to_hospital or 'N/A',
+                distance=str(emergency.distance_to_hospital) if emergency.distance_to_hospital else 'N/A',
+                ambulance_id=emergency.ambulance.unit_number,
+                receiving_hospital=hospital,
+                tags=tags,
+            )
+
         serializer = self.get_serializer(emergency)
         return Response(serializer.data)
 
