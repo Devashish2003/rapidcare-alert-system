@@ -156,6 +156,7 @@ const HospitalDashboard = () => {
         else if (activeTab === 'blood')      loadBlood();
         else if (activeTab === 'equipment')  loadEquipment();
         else if (activeTab === 'profile')    loadProfile();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, hospitalId]);
 
     const handleSetupDefaults = async () => {
@@ -166,7 +167,9 @@ const HospitalDashboard = () => {
             if (activeTab === 'blood')       loadBlood();
             if (activeTab === 'equipment')   loadEquipment();
             if (activeTab === 'departments') loadDepartments();
-        } catch (e) { showToast('error', 'Failed to initialize defaults.'); }
+        } catch {
+            showToast('error', 'Failed to initialize defaults.');
+        }
         finally { setSetupLoading(false); }
     };
 
@@ -185,7 +188,9 @@ const HospitalDashboard = () => {
             setDepartments(prev => prev.map(d => d.id === updated.id ? updated : d));
             setEditingDept(null);
             showToast('success', 'Department saved.');
-        } catch (e) { showToast('error', 'Failed to save department.'); }
+        } catch {
+            showToast('error', 'Failed to save department.');
+        }
         finally { setDeptSaving(false); }
     };
 
@@ -205,7 +210,9 @@ const HospitalDashboard = () => {
             setShowAddDept(false);
             setNewDept(EMPTY_DEPT);
             showToast('success', 'Department added.');
-        } catch (e) { showToast('error', 'Failed to add department.'); }
+        } catch {
+            showToast('error', 'Failed to add department.');
+        }
         finally { setDeptSaving(false); }
     };
 
@@ -215,7 +222,9 @@ const HospitalDashboard = () => {
             await apiService.deleteDepartment(id);
             setDepartments(prev => prev.filter(d => d.id !== id));
             showToast('success', 'Department deleted.');
-        } catch (e) { showToast('error', 'Failed to delete.'); }
+        } catch {
+            showToast('error', 'Failed to delete.');
+        }
     };
 
     // — Blood actions —
@@ -225,7 +234,9 @@ const HospitalDashboard = () => {
             const updated = await apiService.updateBloodInventory(id, {units_available: parseInt(bloodEdits[id]) || 0});
             setBloodInventory(prev => prev.map(b => b.id === id ? updated : b));
             showToast('success', 'Blood inventory updated.');
-        } catch (e) { showToast('error', 'Failed to update.'); }
+        } catch {
+            showToast('error', 'Failed to update.');
+        }
         finally { setBloodSaving(null); }
     };
 
@@ -235,7 +246,9 @@ const HospitalDashboard = () => {
             const updated = await apiService.toggleEquipment(id, !current);
             setEquipment(prev => prev.map(e => e.id === id ? updated : e));
             showToast('success', `Marked ${!current ? 'available' : 'unavailable'}.`);
-        } catch (e) { showToast('error', 'Failed to toggle.'); }
+        } catch {
+            showToast('error', 'Failed to toggle.');
+        }
     };
 
     const saveEquipEdit = async () => {
@@ -249,7 +262,9 @@ const HospitalDashboard = () => {
             setEquipment(prev => prev.map(e => e.id === updated.id ? updated : e));
             setEditingEquip(null);
             showToast('success', 'Equipment updated.');
-        } catch (e) { showToast('error', 'Failed to update.'); }
+        } catch {
+            showToast('error', 'Failed to update.');
+        }
         finally { setEquipSaving(false); }
     };
 
@@ -261,7 +276,9 @@ const HospitalDashboard = () => {
             showToast('success', 'Profile saved.');
             setProfileSaved(true);
             setTimeout(() => setProfileSaved(false), 2500);
-        } catch (e) { showToast('error', 'Failed to save profile.'); }
+        } catch {
+            showToast('error', 'Failed to save profile.');
+        }
         finally { setProfileSaving(false); }
     };
 

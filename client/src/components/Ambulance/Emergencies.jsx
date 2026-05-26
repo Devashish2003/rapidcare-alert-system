@@ -8,7 +8,7 @@ import "./ambulance.css";
 const SEVERITY_ORDER = {critical: 0, high: 1, medium: 2, low: 3};
 
 const Emergencies = () => {
-    const {user: authUser} = useAuth();
+    useAuth();
     const [emergencies, setEmergencies] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);

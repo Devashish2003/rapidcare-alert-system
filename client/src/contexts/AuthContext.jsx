@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, {createContext, useContext, useEffect, useReducer} from 'react';
 import apiService from '../services/api';
 
 // Initial state
@@ -111,12 +111,12 @@ export const AuthProvider = ({ children }) => {
             type: AUTH_ACTIONS.LOAD_USER_SUCCESS, 
             payload: userData 
           });
-        } catch (error) {
+        } catch {
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
-          dispatch({ 
-            type: AUTH_ACTIONS.LOAD_USER_FAILURE, 
-            payload: 'Session expired. Please login again.' 
+          dispatch({
+            type: AUTH_ACTIONS.LOAD_USER_FAILURE,
+            payload: 'Session expired. Please login again.'
           });
         }
       } else {
@@ -209,6 +209,7 @@ export const AuthProvider = ({ children }) => {
 };
 
 // Custom hook to use auth context
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

@@ -7,7 +7,7 @@ import {playAlertSound} from "../../utils/sound";
 import "./alerts.css";
 import "./hospitaldashboard.css";
 
-const Navigation = ({activePage}) => {
+const Navigation = () => {
     const {user} = useAuth();
     const navigate = useNavigate();
 
@@ -127,6 +127,7 @@ const Alerts = () => {
         } else {
             setLoading(false);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [hospitalId]);
 
     const fetchAlerts = async () => {

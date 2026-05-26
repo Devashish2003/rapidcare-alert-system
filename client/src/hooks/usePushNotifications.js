@@ -76,7 +76,7 @@ export function usePushNotifications() {
                 await sub.unsubscribe();
             }
             setSubscribed(false);
-        } catch (e) {
+        } catch {
             setError('Failed to disable push notifications.');
         } finally {
             setLoading(false);

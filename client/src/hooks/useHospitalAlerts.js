@@ -15,6 +15,7 @@ export function useHospitalAlerts(hospitalId, onMessage) {
     const retryDelay = useRef(1000);
     const retryTimer = useRef(null);
     const unmounted = useRef(false);
+    const connectRef = useRef(null);
 
     const connect = useCallback(() => {
         if (unmounted.current || !hospitalId) return;
@@ -28,7 +29,7 @@ export function useHospitalAlerts(hospitalId, onMessage) {
 
         ws.onopen = () => {
             setConnected(true);
-            retryDelay.current = 1000; // reset back-off on success
+            retryDelay.current = 1000;
         };
 
         ws.onmessage = (evt) => {
@@ -44,13 +45,17 @@ export function useHospitalAlerts(hospitalId, onMessage) {
             if (!unmounted.current) {
                 retryTimer.current = setTimeout(() => {
                     retryDelay.current = Math.min(retryDelay.current * 2, 30_000);
-                    connect();
+                    connectRef.current?.();
                 }, retryDelay.current);
             }
         };
 
         ws.onerror = () => ws.close();
     }, [hospitalId, onMessage]);
+
+    useEffect(() => {
+        connectRef.current = connect;
+    }, [connect]);
 
     useEffect(() => {
         unmounted.current = false;

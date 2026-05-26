@@ -1,4 +1,4 @@
-import React, {useState, useRef, useEffect} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {Link, useNavigate} from 'react-router-dom';
 import {useAuth} from '../../contexts/AuthContext';
 import './Dashboard.css';
@@ -55,7 +55,6 @@ const UserMenu = ({user, logout}) => {
 
 const Dashboard = () => {
     const {user, isAuthenticated, logout} = useAuth();
-    const navigate = useNavigate();
 
     const ctaButtons = [
         {label: "Ambulance Driver", icon: "🚨", link: isAuthenticated ? '/ambulance' : '/login', desc: "Access emergency dispatch dashboard"},

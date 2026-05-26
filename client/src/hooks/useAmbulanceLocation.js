@@ -1,12 +1,10 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
 
 const WS_BASE = (import.meta.env.VITE_WS_URL || 'ws://localhost:8000');
-const SEND_INTERVAL_MS = 5000; // push GPS every 5 seconds
+const SEND_INTERVAL_MS = 5000;
 
 /**
  * Streams real-time GPS via WebSocket to /ws/ambulance/{ambulanceId}/location/
- * Saves location to DB through the consumer (no extra REST call needed).
- *
  * Returns { connected, position } where position = { latitude, longitude } | null
  */
 export function useAmbulanceLocation(ambulanceId) {
@@ -18,7 +16,8 @@ export function useAmbulanceLocation(ambulanceId) {
     const retryTimer = useRef(null);
     const sendTimer = useRef(null);
     const unmounted = useRef(false);
-    const posRef = useRef(null); // latest geolocation result
+    const posRef = useRef(null);
+    const connectRef = useRef(null);
 
     const sendLocation = useCallback(() => {
         if (!posRef.current || wsRef.current?.readyState !== WebSocket.OPEN) return;
@@ -45,7 +44,6 @@ export function useAmbulanceLocation(ambulanceId) {
         ws.onmessage = (evt) => {
             try {
                 const data = JSON.parse(evt.data);
-                // Reflect back our own position from the server echo if needed
                 if (data.latitude && data.longitude) {
                     setPosition({latitude: data.latitude, longitude: data.longitude});
                 }
@@ -59,13 +57,17 @@ export function useAmbulanceLocation(ambulanceId) {
             if (!unmounted.current) {
                 retryTimer.current = setTimeout(() => {
                     retryDelay.current = Math.min(retryDelay.current * 2, 30_000);
-                    connect();
+                    connectRef.current?.();
                 }, retryDelay.current);
             }
         };
 
         ws.onerror = () => ws.close();
     }, [ambulanceId, sendLocation]);
+
+    useEffect(() => {
+        connectRef.current = connect;
+    }, [connect]);
 
     // Watch GPS
     useEffect(() => {

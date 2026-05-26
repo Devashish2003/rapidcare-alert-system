@@ -37,7 +37,7 @@ const AmbulanceHeader = ({activePath, unitNumber}) => {
     const handleLogout = async () => {
         try {
             await logout();
-        } catch (_) {
+        } catch { /* ignore */
         }
         navigate("/login");
     };

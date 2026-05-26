@@ -1,9 +1,10 @@
 /* RapidCare Service Worker — caching + web push */
+/* global clients */
 const CACHE_NAME = 'rapidcare-v1';
 const HOSPITAL_API = '/api/hospital/hospitals/';
 
 // On install, cache nothing explicitly — we populate lazily
-self.addEventListener('install', (event) => {
+self.addEventListener('install', () => {
     self.skipWaiting();
 });
 

@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 from django.contrib.auth import get_user_model
 from django.db import models
@@ -29,7 +30,7 @@ MAX_SIZES = {  # bytes
 
 
 def _upload_path(instance, filename):
-    return f"uploads/{instance.file_type}/{instance.uploaded_at.strftime('%Y/%m')}/{filename}"
+    return f"uploads/{instance.file_type}/{datetime.now().strftime('%Y/%m')}/{filename}"
 
 
 class MediaUpload(models.Model):

@@ -1,6 +1,6 @@
-import React, {useEffect, useRef, useState} from "react";
+import React, {useEffect, useState} from "react";
 import {useNavigate, useParams} from "react-router-dom";
-import {MapContainer, Marker, Popup, TileLayer, Polyline, useMap} from "react-leaflet";
+import {MapContainer, Marker, Polyline, Popup, TileLayer, useMap} from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {useAuth} from "../../contexts/AuthContext";
@@ -48,7 +48,7 @@ function FitBounds({bounds}) {
 
 const HospitalSelection = () => {
     const {emergencyId} = useParams();
-    const {user: authUser} = useAuth();
+    useAuth();
     const [recommendations, setRecommendations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -59,6 +59,7 @@ const HospitalSelection = () => {
     const [hoveredId, setHoveredId] = useState(null);
     const navigate = useNavigate();
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         fetchRecommendations();
     }, [emergencyId]);

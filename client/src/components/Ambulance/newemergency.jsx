@@ -4,10 +4,7 @@ import {useAuth} from "../../contexts/AuthContext";
 import apiService from "../../services/api";
 import {useOnlineStatus} from "../../hooks/useOnlineStatus";
 import {useOfflineQueue} from "../../hooks/useOfflineQueue";
-import {
-    saveDraft, loadDraft, clearDraft,
-    saveVoiceBlob, loadVoiceBlob, clearVoiceBlob,
-} from "../../utils/db";
+import {clearDraft, clearVoiceBlob, loadDraft, loadVoiceBlob, saveDraft, saveVoiceBlob,} from "../../utils/db";
 import AmbulanceHeader from "./AmbulanceHeader";
 import "./ambulance.css";
 import "./newemergency.css";
@@ -18,7 +15,7 @@ const EMPTY_FORM = {
 };
 
 const NewEmergency = () => {
-    const {user: authUser} = useAuth();
+    useAuth();
     const navigate = useNavigate();
     const isOnline = useOnlineStatus();
 
@@ -50,7 +47,7 @@ const NewEmergency = () => {
         const restore = async () => {
             const draft = await loadDraft();
             if (draft) {
-                const {savedAt, id, ...formFields} = draft;
+                const {savedAt: _savedAt, id: _id, ...formFields} = draft;
                 setFormData(formFields);
                 setDraftRestored(true);
             }

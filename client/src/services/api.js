@@ -1,5 +1,5 @@
 import axios from 'axios';
-import {enqueueRequest, cacheHospitals, getCachedHospitals} from '../utils/db';
+import {cacheHospitals, enqueueRequest, getCachedHospitals} from '../utils/db';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -76,7 +76,7 @@ class ApiService {
               originalRequest.headers.Authorization = `Bearer ${access}`;
               return this.api(originalRequest);
             }
-          } catch (refreshError) {
+          } catch {
             // Refresh failed, redirect to login
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');

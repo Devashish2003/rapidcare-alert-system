@@ -31,40 +31,6 @@ const Ambulance = () => {
         }
     };
 
-    const handleUpdateLocation = async () => {
-        if (!navigator.geolocation) {
-            alert('Geolocation is not supported by your browser');
-            return;
-        }
-
-        try {
-            const position = await new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                });
-            });
-
-            const { latitude, longitude } = position.coords;
-            
-            if (dashboardData?.ambulance?.id) {
-                await apiService.updateAmbulanceLocation(dashboardData.ambulance.id, {
-                    latitude: latitude.toString(),
-                    longitude: longitude.toString(),
-                    address: 'Current GPS Location'
-                });
-                
-                // Refresh dashboard data
-                await fetchDashboardData();
-                alert('Location updated successfully!');
-            }
-        } catch (err) {
-            console.error('Error updating location:', err);
-            alert('Failed to update location. Please try again.');
-        }
-    };
-
     const stats = dashboardData?.stats || {};
     const ambulance = dashboardData?.ambulance;
     const activeEmergencies = dashboardData?.active_emergencies || [];
