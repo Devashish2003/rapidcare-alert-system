@@ -9,6 +9,8 @@ class Hospital(models.Model):
     address = models.TextField()
     phone = models.CharField(max_length=20)
     email = models.EmailField()
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, help_text="GPS latitude")
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, help_text="GPS longitude")
     bed_capacity = models.PositiveIntegerField(default=0, help_text="Total bed capacity of the hospital")
     emergency_contact = models.CharField(max_length=200, default='', help_text="Emergency contact person name")
     admin_email = models.EmailField(default='', help_text="Primary administrator email")

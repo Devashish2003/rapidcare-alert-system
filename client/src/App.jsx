@@ -11,6 +11,7 @@ import NewEmergency from './components/Ambulance/newemergency';
 import HospitalSelection from './components/Ambulance/hospitalselection';
 import Emergencies from './components/Ambulance/Emergencies';
 import AmbulanceSettings from './components/Ambulance/Settings';
+import HospitalSettings from './components/hospital/HospitalSettings';
 import Alerts from './components/hospital/Alerts';
 import Availability from './components/hospital/availability';
 import Referrals from './components/hospital/referrals';
@@ -103,6 +104,14 @@ function App() {
                   element={
                       <ProtectedRoute>
                           <AmbulanceSettings/>
+                      </ProtectedRoute>
+                  }
+              />
+              <Route
+                  path="/hospital-settings"
+                  element={
+                      <ProtectedRoute>
+                          <HospitalSettings/>
                       </ProtectedRoute>
                   }
               />

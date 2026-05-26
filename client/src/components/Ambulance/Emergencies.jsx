@@ -68,7 +68,7 @@ const Emergencies = () => {
                     <h2>Emergencies</h2>
                     <p>All emergency cases assigned to you</p>
                 </div>
-                <button className="primary-btn" onClick={() => handleNavigation("/new-emergency")}>+ New Emergency
+                <button className="primary-btn" onClick={() => navigate("/new-emergency")}>+ New Emergency
                 </button>
             </div>
 

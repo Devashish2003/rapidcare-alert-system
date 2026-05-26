@@ -31,18 +31,21 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',  # must be before staticfiles to serve via ASGI
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
     'apps.users',
     'apps.hospital',
     'apps.ambulance',
+    'apps.uploads',
 ]
 
 MIDDLEWARE = [
@@ -74,6 +77,16 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379)],
+        },
+    },
+}
 
 
 # Database
@@ -122,6 +135,35 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# ── Media files (uploads) ────────────────────────────────────────────────────
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# File upload limits
+DATA_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024  # 25 MB overall
+FILE_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024  # 20 MB single file
+
+# ── Web Push / VAPID ─────────────────────────────────────────────────────────
+# Generated with py_vapid. Replace in production (never commit real keys to VCS).
+VAPID_PUBLIC_KEY = 'BEV4kmHTlUjNlqUK8s6P19gMaxb5bTv0frob6YheaXVO8oerkt7phI-9_yowck63f_qUHNY-6N501p7j6CA8TgA'
+VAPID_PRIVATE_KEY = """-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgbSX6xDWP4YS4ihib
+0SfH/JHIA22zbV0GFb57ORM1DZChRANCAARFeJJh05VIzZalCvLOj9fYDGsW+W07
+9H66G+mIXml1TvKHq5Le6YSPvf8qMHJOt3/6lBzWPujedNae4+ggPE4A
+-----END PRIVATE KEY-----"""
+VAPID_ADMIN_EMAIL = 'admin@rapidcare.local'
+
+# ── S3 storage (uncomment and fill in to switch from local to S3) ────────────
+# DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+# AWS_ACCESS_KEY_ID     = os.environ.get('AWS_ACCESS_KEY_ID')
+# AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+# AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_BUCKET_NAME', 'rapidcare-media')
+# AWS_S3_REGION_NAME    = os.environ.get('AWS_REGION', 'ap-south-1')
+# AWS_S3_FILE_OVERWRITE = False
+# AWS_DEFAULT_ACL       = 'private'
+# AWS_S3_CUSTOM_DOMAIN  = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+# MEDIA_URL             = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

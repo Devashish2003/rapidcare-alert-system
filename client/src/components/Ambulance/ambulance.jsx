@@ -2,6 +2,7 @@ import React, {useEffect, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {useAuth} from "../../contexts/AuthContext";
 import apiService from "../../services/api";
+import {useAmbulanceLocation} from "../../hooks/useAmbulanceLocation";
 import AmbulanceHeader from "./AmbulanceHeader";
 import "./ambulance.css";
 
@@ -70,6 +71,10 @@ const Ambulance = () => {
     const recentEmergencies = dashboardData?.recent_emergencies || [];
     const nearbyHospitals = dashboardData?.nearby_hospitals || [];
 
+    // ── Live GPS streaming via WebSocket ─────────────────────────────────────
+    const {connected: locationConnected, position} = useAmbulanceLocation(ambulance?.id);
+    // ─────────────────────────────────────────────────────────────────────────
+
     const displayName = authUser?.first_name || authUser?.username || 'Driver';
 
     return (
@@ -82,7 +87,7 @@ const Ambulance = () => {
                     <p>Welcome back, {displayName}</p>
                 </div>
 
-                <button className="primary-btn" onClick={() => handleNavigation('/new-emergency')}>+ New Emergency</button>
+                <button className="primary-btn" onClick={() => navigate('/new-emergency')}>+ New Emergency</button>
             </div>
 
             {/* Inline loading / error banners */}
@@ -118,21 +123,32 @@ const Ambulance = () => {
 
             {/* Location */}
             <div className="card location-card">
-                <h4>📍 Current Location</h4>
+                <h4>📍 Current Location
+                    <span style={{
+                        marginLeft: '10px', fontSize: '12px', fontWeight: 400,
+                        color: locationConnected ? '#059669' : '#9ca3af',
+                    }}>
+                        {locationConnected ? '● Streaming Live' : '○ Connecting...'}
+                    </span>
+                </h4>
 
                 <div className="map-box">
                     <div className="map-content">
                         <div className="map-icon">➤</div>
                         <h4>Your Current Location</h4>
-                        <p>{ambulance?.current_location_lat && ambulance?.current_location_lng 
-                            ? `${ambulance.current_location_lat}, ${ambulance.current_location_lng}` 
-                            : 'Location not updated'}</p>
+                        <p>
+                            {position
+                                ? `${Number(position.latitude).toFixed(5)}, ${Number(position.longitude).toFixed(5)}`
+                                : ambulance?.current_location_lat && ambulance?.current_location_lng
+                                    ? `${ambulance.current_location_lat}, ${ambulance.current_location_lng}`
+                                    : 'Acquiring GPS...'}
+                        </p>
                         <span className="nearby">Nearby Hospitals ({nearbyHospitals.length})</span>
                     </div>
                 </div>
-                <button className="location-btn" onClick={handleUpdateLocation}>
-                    📍 Update My Location
-                </button>
+                <p style={{fontSize: '12px', color: '#6b7280', margin: '8px 0 0', textAlign: 'center'}}>
+                    Location streams automatically every 5 seconds when connected
+                </p>
             </div>
 
             {/* Active Emergencies */}

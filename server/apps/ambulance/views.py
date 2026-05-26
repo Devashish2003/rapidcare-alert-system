@@ -10,18 +10,20 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.hospital.models import Hospital, Department, BloodInventory, Equipment
+from apps.users.permissions import IsAmbulanceStaff, IsAmbulanceStaffOrReadOnly
 from .models import Ambulance, Emergency, LocationUpdate
 from .serializers import (
     AmbulanceSerializer, EmergencySerializer, EmergencyCreateSerializer,
     LocationUpdateSerializer, AmbulanceDashboardSerializer
 )
+from .utils import haversine_distance, estimate_eta_minutes
 
 User = get_user_model()
 
 
 class AmbulanceViewSet(viewsets.ModelViewSet):
     serializer_class = AmbulanceSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAmbulanceStaff]
 
     def get_queryset(self):
         queryset = Ambulance.objects.filter(is_active=True)
@@ -161,7 +163,7 @@ class AmbulanceViewSet(viewsets.ModelViewSet):
 
 class EmergencyViewSet(viewsets.ModelViewSet):
     serializer_class = EmergencySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAmbulanceStaff]
 
     def get_queryset(self):
         queryset = Emergency.objects.all()
@@ -209,80 +211,86 @@ class EmergencyViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def recommend_hospitals(self, request):
-        """Recommend hospitals based on ambulance location and patient condition"""
+        """Recommend hospitals based on ambulance location and patient condition."""
         lat = request.query_params.get('lat')
         lng = request.query_params.get('lng')
         severity = request.query_params.get('severity', 'medium')
         blood_type = request.query_params.get('blood_type')
-        
-        if not lat or not lng:
-            return Response(
-                {'error': 'Latitude and longitude are required'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
 
-        ambulance_location = (float(lat), float(lng))
+        has_location = lat is not None and lng is not None
+        if has_location:
+            try:
+                lat, lng = float(lat), float(lng)
+            except ValueError:
+                return Response({'error': 'Invalid latitude or longitude'}, status=status.HTTP_400_BAD_REQUEST)
+
         hospitals = Hospital.objects.filter(is_active=True)
-        
         recommendations = []
+
         for hospital in hospitals:
-            # Calculate score based on various factors
-            score = 100
-            
-            # Check bed availability
-            total_beds = Department.objects.filter(hospital=hospital).aggregate(
-                total=Count('total_beds'),
-                available=Count('available_beds')
+            # --- Distance ---
+            if has_location and hospital.latitude and hospital.longitude:
+                distance = haversine_distance(lat, lng, hospital.latitude, hospital.longitude)
+                eta = estimate_eta_minutes(distance)
+                # Penalise by distance: hospitals more than 50 km away get a steep penalty
+                distance_score = max(0, 50 - distance) * 2
+            else:
+                distance = None
+                eta = 'N/A'
+                distance_score = 0  # unknown location hospitals rank last
+
+            score = distance_score
+
+            # --- Bed availability ---
+            from django.db.models import Sum
+            bed_stats = Department.objects.filter(hospital=hospital).aggregate(
+                total=Sum('total_beds'),
+                available=Sum('available_beds'),
             )
-            
-            if total_beds['available'] and total_beds['total']:
-                bed_ratio = total_beds['available'] / total_beds['total']
-                score += bed_ratio * 20
-            
-            # Check blood availability if blood type specified
+            available_beds = bed_stats['available'] or 0
+            total_beds = bed_stats['total'] or 0
+            if total_beds > 0:
+                score += (available_beds / total_beds) * 30
+
+            # --- Blood availability ---
             if blood_type:
                 try:
-                    blood_inventory = BloodInventory.objects.get(
-                        hospital=hospital,
-                        blood_type=blood_type
-                    )
-                    if blood_inventory.units_available > 0:
+                    inv = BloodInventory.objects.get(hospital=hospital, blood_type=blood_type)
+                    if inv.units_available > 0:
                         score += 15
                 except BloodInventory.DoesNotExist:
                     score -= 10
-            
-            # Check equipment based on severity
+
+            # --- Critical equipment for high/critical severity ---
             if severity in ['high', 'critical']:
-                critical_equipment = Equipment.objects.filter(
+                critical_count = Equipment.objects.filter(
                     hospital=hospital,
-                    equipment_type__in=['ventilators', 'defibrillators'],
-                    available_count__gt=0
+                    equipment_type__in=['ventilators', 'defibrillators', 'icu_monitor'],
+                    available_count__gt=0,
                 ).count()
-                score += critical_equipment * 5
-            
-            # For now, use a random distance (in production, use actual geolocation)
-            distance = 5.0  # placeholder
-            
+                score += critical_count * 5
+
             recommendations.append({
                 'hospital': {
                     'id': hospital.id,
                     'name': hospital.name,
                     'address': hospital.address,
                     'phone': hospital.phone,
-                    'bed_capacity': hospital.bed_capacity
+                    'bed_capacity': hospital.bed_capacity,
+                    'latitude': str(hospital.latitude) if hospital.latitude else None,
+                    'longitude': str(hospital.longitude) if hospital.longitude else None,
                 },
-                'score': score,
+                'score': round(score, 1),
                 'distance': distance,
-                'eta': f"{int(distance * 3)} mins",  # Rough estimate
-                'available_beds': total_beds.get('available', 0)
+                'eta': eta,
+                'available_beds': available_beds,
             })
-        
-        # Sort by score
+
         recommendations.sort(key=lambda x: x['score'], reverse=True)
-        
+
         return Response({
-            'recommendations': recommendations[:5],  # Top 5 recommendations
-            'current_location': {'lat': lat, 'lng': lng}
+            'recommendations': recommendations[:5],
+            'current_location': {'lat': lat, 'lng': lng} if has_location else None,
         })
 
     @action(detail=True, methods=['post'])

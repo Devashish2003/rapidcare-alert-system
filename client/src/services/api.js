@@ -1,6 +1,12 @@
 import axios from 'axios';
+import {enqueueRequest, cacheHospitals, getCachedHospitals} from '../utils/db';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+// Returns true when the error is a pure network failure (no server response)
+function isNetworkError(error) {
+  return !error.response && error.code !== 'ERR_CANCELED';
+}
 
 class ApiService {
   constructor() {
@@ -25,11 +31,33 @@ class ApiService {
       }
     );
 
-    // Add response interceptor to handle token refresh
+    // Add response interceptor to handle token refresh + offline queuing
     this.api.interceptors.response.use(
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
+
+        // Queue write requests (POST/PUT/PATCH) when offline for later replay
+        if (
+            isNetworkError(error) &&
+            originalRequest.method &&
+            ['post', 'put', 'patch'].includes(originalRequest.method.toLowerCase()) &&
+            !originalRequest._queued
+        ) {
+          originalRequest._queued = true;
+          await enqueueRequest({
+            url: originalRequest.baseURL
+                ? originalRequest.baseURL + originalRequest.url
+                : originalRequest.url,
+            method: originalRequest.method.toUpperCase(),
+            data: originalRequest.data ? JSON.parse(originalRequest.data) : null,
+            headers: {},
+          }).catch(() => {
+          }); // never crash on queue failure
+          const offlineError = new Error('You are offline. Request queued for replay.');
+          offlineError.isOfflineQueued = true;
+          return Promise.reject(offlineError);
+        }
 
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
@@ -172,8 +200,19 @@ class ApiService {
 
   // Hospital endpoints
   async getHospitals() {
-    const response = await this.api.get('/api/hospital/hospitals/');
-    return response.data;
+    try {
+      const response = await this.api.get('/api/hospital/hospitals/');
+      // Opportunistically cache for offline use
+      const list = Array.isArray(response.data) ? response.data : response.data.results || [];
+      cacheHospitals(list).catch(() => {
+      });
+      return response.data;
+    } catch (err) {
+      if (isNetworkError(err)) {
+        return getCachedHospitals();
+      }
+      throw err;
+    }
   }
 
   async getHospital(hospitalId) {
@@ -290,6 +329,60 @@ class ApiService {
 
   async rejectReferral(referralId, notes = '') {
     const response = await this.api.post(`/api/hospital/patient-referrals/${referralId}/reject/`, { notes });
+    return response.data;
+  }
+
+  // ── File Upload endpoints ────────────────────────────────────────────────
+
+  /**
+   * Upload a single file.
+   * @param {File}   file
+   * @param {string} fileType  - 'voice_note' | 'medical_document' | 'patient_photo'
+   * @param {object} links     - { emergencyId?, referralId? }
+   * @param {function} onProgress - optional (percentComplete: number) => void
+   */
+  async uploadFile(file, fileType, {emergencyId, referralId} = {}, onProgress) {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('file_type', fileType);
+    if (emergencyId) form.append('emergency_id', emergencyId);
+    if (referralId) form.append('referral_id', referralId);
+
+    const response = await this.api.post('/api/uploads/', form, {
+      headers: {'Content-Type': 'multipart/form-data'},
+      onUploadProgress: onProgress
+          ? (e) => onProgress(e.total ? Math.round((e.loaded * 100) / e.total) : 0)
+          : undefined,
+    });
+    return response.data;
+  }
+
+  async getUploads({emergencyId, referralId} = {}) {
+    const params = {};
+    if (emergencyId) params.emergency = emergencyId;
+    if (referralId) params.referral = referralId;
+    const response = await this.api.get('/api/uploads/', {params});
+    return response.data;
+  }
+
+  async deleteUpload(uploadId) {
+    await this.api.delete(`/api/uploads/${uploadId}/`);
+  }
+
+  // ── Web Push endpoints ───────────────────────────────────────────────────
+
+  async getVapidPublicKey() {
+    const response = await this.api.get('/api/auth/push/vapid-public-key/');
+    return response.data;
+  }
+
+  async pushSubscribe(subscription) {
+    const response = await this.api.post('/api/auth/push/subscribe/', subscription);
+    return response.data;
+  }
+
+  async pushUnsubscribe(data = {}) {
+    const response = await this.api.delete('/api/auth/push/unsubscribe/', {data});
     return response.data;
   }
 }

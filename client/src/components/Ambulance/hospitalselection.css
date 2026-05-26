@@ -237,25 +237,68 @@
     cursor: not-allowed;
 }
 
+/* ── Highlighted card on hover ────────────────────────────── */
+.hs-card-hover {
+    border: 2px solid #dc2626;
+    box-shadow: 0 4px 18px rgba(220, 38, 38, 0.18) !important;
+}
+
+/* ── Split layout (list + map) ────────────────────────────── */
+.hs-split {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 20px;
+    align-items: start;
+}
+
+.hs-split .hs-list {
+    max-height: calc(100vh - 220px);
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.hs-map-panel {
+    position: sticky;
+    top: 20px;
+    height: calc(100vh - 220px);
+    min-height: 480px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
 /* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 900px) {
+    .hs-split {
+        grid-template-columns: 1fr;
+    }
+
+    .hs-map-panel {
+        position: static;
+        height: 340px;
+        min-height: 0;
+        order: -1; /* map above list on mobile */
+    }
+
+    .hs-split .hs-list {
+        max-height: none;
+        overflow-y: visible;
+    }
+}
+
 @media (max-width: 768px) {
     .hs-body {
-        margin: 0 20px 24px;
+        margin: 0 16px 24px;
     }
 
     .hs-steps {
         display: none;
     }
-
-    .hs-stats {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 8px;
-    }
 }
 
 @media (max-width: 480px) {
     .hs-body {
-        margin: 0 15px 20px;
+        margin: 0 12px 20px;
     }
 
     .hs-card {

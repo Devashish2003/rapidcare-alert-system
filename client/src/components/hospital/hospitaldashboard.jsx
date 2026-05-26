@@ -298,6 +298,7 @@ const HospitalDashboard = () => {
                         <button className="nav-btn" onClick={() => navigate('/alerts')}>🚨 Alerts</button>
                         <button className="nav-btn" onClick={() => navigate('/referrals')}>📋 Referrals</button>
                         <button className="nav-btn" onClick={() => navigate('/hospitals')}>🔍 Hospitals</button>
+                        <button className="nav-btn" onClick={() => navigate('/hospital-settings')}>⚙️ Settings</button>
                     </div>
 
                     {user && (

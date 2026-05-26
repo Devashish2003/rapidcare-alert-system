@@ -4,6 +4,7 @@ from rest_framework import viewsets, status, permissions, views
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.users.permissions import IsHospitalStaff, IsHospitalStaffOrReadOnly
 from .models import (
     Hospital, Department, BloodInventory, Equipment,
     EmergencyAlert, PatientReferral
@@ -18,9 +19,10 @@ from .serializers import (
 class HospitalViewSet(viewsets.ModelViewSet):
     queryset = Hospital.objects.filter(is_active=True)
     serializer_class = HospitalSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    # Civilians and ambulance staff can read; only hospital staff can create/update/delete
+    permission_classes = [IsHospitalStaffOrReadOnly]
 
-    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    @action(detail=True, methods=['post'], permission_classes=[IsHospitalStaff])
     def setup_defaults(self, request, pk=None):
         hospital = self.get_object()
 
@@ -43,7 +45,7 @@ class HospitalViewSet(viewsets.ModelViewSet):
 
 class DepartmentViewSet(viewsets.ModelViewSet):
     serializer_class = DepartmentSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [IsHospitalStaffOrReadOnly]
 
     def get_queryset(self):
         hospital_id = self.request.query_params.get('hospital_id')
@@ -81,7 +83,7 @@ class DepartmentViewSet(viewsets.ModelViewSet):
 
 class BloodInventoryViewSet(viewsets.ModelViewSet):
     serializer_class = BloodInventorySerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [IsHospitalStaffOrReadOnly]
 
     def get_queryset(self):
         hospital_id = self.request.query_params.get('hospital_id')
@@ -102,7 +104,7 @@ class BloodInventoryViewSet(viewsets.ModelViewSet):
 
 class EquipmentViewSet(viewsets.ModelViewSet):
     serializer_class = EquipmentSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [IsHospitalStaffOrReadOnly]
 
     def get_queryset(self):
         hospital_id = self.request.query_params.get('hospital_id')
@@ -128,7 +130,7 @@ class EquipmentViewSet(viewsets.ModelViewSet):
 
 class EmergencyAlertViewSet(viewsets.ModelViewSet):
     serializer_class = EmergencyAlertSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsHospitalStaff]
 
     def get_queryset(self):
         hospital_id = self.request.query_params.get('hospital_id')
@@ -201,7 +203,7 @@ class EmergencyAlertViewSet(viewsets.ModelViewSet):
 
 class PatientReferralViewSet(viewsets.ModelViewSet):
     serializer_class = PatientReferralSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsHospitalStaff]
 
     def get_queryset(self):
         hospital_id = self.request.query_params.get('hospital_id')

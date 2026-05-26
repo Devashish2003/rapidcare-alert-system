@@ -72,7 +72,8 @@ class Emergency(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     
     # Additional info
-    voice_note_url = models.URLField(blank=True)
+    voice_note = models.FileField(upload_to='voice_notes/%Y/%m/', null=True, blank=True)
+    patient_photo = models.ImageField(upload_to='patient_photos/%Y/%m/', null=True, blank=True)
     notes = models.TextField(blank=True)
     
     # Timestamps

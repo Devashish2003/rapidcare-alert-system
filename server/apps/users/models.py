@@ -34,7 +34,14 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     license_number = models.CharField(max_length=50, null=True, blank=True)
     ambulance_id = models.CharField(max_length=20, null=True, blank=True)
-    hospital_id = models.IntegerField(null=True, blank=True, help_text="ID of the hospital this staff belongs to")
+    hospital = models.ForeignKey(
+        'hospital.Hospital',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='staff',
+        help_text="Hospital this staff member belongs to",
+    )
     department = models.CharField(max_length=100, null=True, blank=True)
     experience_years = models.PositiveIntegerField(null=True, blank=True)
     specialization = models.CharField(max_length=100, null=True, blank=True)
@@ -66,6 +73,22 @@ class UserDevice(models.Model):
         db_table = 'user_devices'
         verbose_name = 'User Device'
         verbose_name_plural = 'User Devices'
+
+
+class PushSubscription(models.Model):
+    """Browser push subscription (Web Push / VAPID) for background notifications."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='push_subscriptions')
+    endpoint = models.TextField()
+    p256dh_key = models.TextField()
+    auth_key = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'push_subscriptions'
+        unique_together = [['user', 'endpoint']]
+
+    def __str__(self):
+        return f"{self.user.email} — {self.endpoint[:60]}"
 
 
 class UserSession(models.Model):

@@ -5,7 +5,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import User, UserProfile
+from django.conf import settings
+
+from .models import User, UserProfile, PushSubscription
 from .serializers import (
     UserRegistrationSerializer, UserLoginSerializer,
     UserSerializer, UserProfileSerializer, PasswordChangeSerializer
@@ -121,3 +123,40 @@ def user_dashboard(request):
         pass
     
     return Response(dashboard_data)
+
+
+# ── Web Push subscriptions ────────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def vapid_public_key(request):
+    return Response({'publicKey': settings.VAPID_PUBLIC_KEY})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def push_subscribe(request):
+    endpoint = request.data.get('endpoint')
+    keys = request.data.get('keys', {})
+    p256dh = keys.get('p256dh')
+    auth = keys.get('auth')
+    if not all([endpoint, p256dh, auth]):
+        return Response({'error': 'endpoint and keys.p256dh/auth are required'},
+                        status=status.HTTP_400_BAD_REQUEST)
+    PushSubscription.objects.update_or_create(
+        user=request.user,
+        endpoint=endpoint,
+        defaults={'p256dh_key': p256dh, 'auth_key': auth},
+    )
+    return Response({'status': 'subscribed'})
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def push_unsubscribe(request):
+    endpoint = request.data.get('endpoint')
+    qs = PushSubscription.objects.filter(user=request.user)
+    if endpoint:
+        qs = qs.filter(endpoint=endpoint)
+    qs.delete()
+    return Response({'status': 'unsubscribed'})

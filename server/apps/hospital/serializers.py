@@ -48,7 +48,7 @@ class HospitalSignupSerializer(serializers.ModelSerializer):
             last_name='Administrator',
             role='FRONT_DESK',
         )
-        admin_user.profile.hospital_id = hospital.id
+        admin_user.profile.hospital = hospital
         admin_user.profile.save()
 
         return hospital
@@ -104,6 +104,7 @@ class PatientReferralSerializer(serializers.ModelSerializer):
     referring_hospital_name = serializers.CharField(source='referring_hospital.name', read_only=True)
     receiving_hospital_name = serializers.CharField(source='receiving_hospital.name', read_only=True)
     documents_count = serializers.SerializerMethodField()
+    attachments = serializers.SerializerMethodField()
 
     class Meta:
         model = PatientReferral
@@ -111,7 +112,14 @@ class PatientReferralSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at', 'accepted_at', 'accepted_by']
 
     def get_documents_count(self, obj):
-        return len(obj.medical_documents) if obj.medical_documents else 0
+        return obj.attachments.count()
+
+    def get_attachments(self, obj):
+        from apps.uploads.serializers import MediaUploadSerializer
+        return MediaUploadSerializer(
+            obj.attachments.all(), many=True,
+            context=self.context,
+        ).data
 
 
 class DashboardStatsSerializer(serializers.Serializer):

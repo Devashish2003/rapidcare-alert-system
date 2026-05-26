@@ -28,6 +28,7 @@ const Navigation = () => {
                 <button className="nav-btn" onClick={() => navigate('/alerts')}>Alerts</button>
                 <button className="nav-btn" onClick={() => navigate('/availability')}>Availability</button>
                 <button className="nav-btn active" onClick={() => navigate('/referrals')}>Referrals</button>
+                <button className="nav-btn" onClick={() => navigate('/hospital-settings')}>Settings</button>
             </div>
 
             {user && (
@@ -64,6 +65,8 @@ const Referrals = () => {
         current_diagnosis: "",
         reason_for_referral: "",
     });
+    const [docFiles, setDocFiles] = useState([]);       // File[] selected for upload
+    const [uploadProgress, setUploadProgress] = useState(null);
 
     const hospitalId = user?.profile?.hospital_id;
 
@@ -115,16 +118,36 @@ const Referrals = () => {
         setFormData(prev => ({...prev, [field]: value}));
     };
 
+    const handleDocFiles = (e) => {
+        setDocFiles(Array.from(e.target.files));
+    };
+
     const handleSendReferral = async (e) => {
         e.preventDefault();
         try {
             setSubmitting(true);
-            await apiService.createReferral({
+            setUploadProgress(null);
+
+            // Step 1: create referral record
+            const referral = await apiService.createReferral({
                 ...formData,
                 patient_age: parseInt(formData.patient_age),
                 referring_hospital_id: hospitalId,
             });
+
+            // Step 2: upload each medical document
+            for (let i = 0; i < docFiles.length; i++) {
+                setUploadProgress(`Uploading document ${i + 1} of ${docFiles.length}...`);
+                await apiService.uploadFile(
+                    docFiles[i],
+                    'medical_document',
+                    {referralId: referral.id},
+                );
+            }
+
+            setUploadProgress(null);
             setShowCreateForm(false);
+            setDocFiles([]);
             setFormData({
                 patient_name: "", patient_age: "", receiving_hospital_id: "",
                 required_specialty: "", current_diagnosis: "", reason_for_referral: "",
@@ -196,11 +219,33 @@ const Referrals = () => {
                                         <p><strong>Condition:</strong> {referral.current_diagnosis}</p>
                                         <p><strong>Reason:</strong> {referral.reason_for_referral}</p>
                                         <p><strong>Specialty needed:</strong> {referral.required_specialty}</p>
-                                        {referral.documents_count > 0 && (
+                                        {referral.attachments?.length > 0 ? (
+                                            <div className="documents">
+                                                <strong>📎 {referral.attachments.length} document{referral.attachments.length > 1 ? 's' : ''} attached</strong>
+                                                <div style={{
+                                                    display: 'flex',
+                                                    flexWrap: 'wrap',
+                                                    gap: '6px',
+                                                    marginTop: '4px'
+                                                }}>
+                                                    {referral.attachments.map(doc => (
+                                                        <a key={doc.id} href={doc.file_url} target="_blank"
+                                                           rel="noreferrer"
+                                                           style={{
+                                                               fontSize: '12px',
+                                                               color: '#2563eb',
+                                                               textDecoration: 'underline'
+                                                           }}>
+                                                            {doc.original_name}
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : referral.documents_count > 0 ? (
                                             <p className="documents">
-                                                <strong>{referral.documents_count} medical documents attached</strong>
+                                                <strong>📎 {referral.documents_count} document{referral.documents_count > 1 ? 's' : ''} attached</strong>
                                             </p>
-                                        )}
+                                        ) : null}
                                     </div>
 
                                     {referral.status === "pending" && (
@@ -327,10 +372,36 @@ const Referrals = () => {
                                 />
                             </div>
 
+                            <div className="form-group">
+                                <label>Medical Documents (Optional)</label>
+                                <input
+                                    type="file"
+                                    multiple
+                                    accept=".pdf,image/jpeg,image/png,image/jpg"
+                                    onChange={handleDocFiles}
+                                    style={{padding: '6px 0'}}
+                                />
+                                {docFiles.length > 0 && (
+                                    <p style={{fontSize: '12px', color: '#6b7280', marginTop: '4px'}}>
+                                        {docFiles.length} file{docFiles.length > 1 ? 's' : ''} selected
+                                        ({docFiles.map(f => f.name).join(', ')})
+                                    </p>
+                                )}
+                            </div>
+
+                            {uploadProgress && (
+                                <div style={{
+                                    padding: '8px 12px', background: '#eff6ff', color: '#1d4ed8',
+                                    borderRadius: '6px', fontSize: '13px', marginBottom: '8px'
+                                }}>
+                                    ⏫ {uploadProgress}
+                                </div>
+                            )}
+
                             <div className="form-actions">
                                 <button type="button" className="btn cancel" onClick={() => setShowCreateForm(false)}>Cancel</button>
                                 <button type="submit" className="btn primary" disabled={submitting}>
-                                    {submitting ? 'Sending...' : 'Send Referral'}
+                                    {submitting ? (uploadProgress ? 'Uploading...' : 'Sending...') : 'Send Referral'}
                                 </button>
                             </div>
                         </form>

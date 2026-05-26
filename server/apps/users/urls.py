@@ -11,4 +11,8 @@ urlpatterns = [
     path('me/', views.UserDetailView.as_view(), name='user-detail'),
     path('change-password/', views.change_password, name='change-password'),
     path('dashboard/', views.user_dashboard, name='dashboard'),
+    # Web Push
+    path('push/vapid-public-key/', views.vapid_public_key, name='vapid-public-key'),
+    path('push/subscribe/', views.push_subscribe, name='push-subscribe'),
+    path('push/unsubscribe/', views.push_unsubscribe, name='push-unsubscribe'),
 ]

@@ -1,7 +1,9 @@
-import React, {useEffect, useState} from "react";
+import React, {useCallback, useEffect, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {useAuth} from "../../contexts/AuthContext";
 import apiService from "../../services/api";
+import {useHospitalAlerts} from "../../hooks/useHospitalAlerts";
+import {playAlertSound} from "../../utils/sound";
 import "./alerts.css";
 import "./hospitaldashboard.css";
 
@@ -28,6 +30,7 @@ const Navigation = ({activePage}) => {
                 <button className="nav-btn active" onClick={() => navigate('/alerts')}>Alerts</button>
                 <button className="nav-btn" onClick={() => navigate('/availability')}>Availability</button>
                 <button className="nav-btn" onClick={() => navigate('/referrals')}>Referrals</button>
+                <button className="nav-btn" onClick={() => navigate('/hospital-settings')}>Settings</button>
             </div>
 
             {user && (
@@ -103,6 +106,21 @@ const Alerts = () => {
 
     const hospitalId = user?.profile?.hospital_id;
 
+    // ── Real-time WebSocket ──────────────────────────────────────────────────
+    const handleWsMessage = useCallback((payload) => {
+        if (payload.type === "new_alert") {
+            // Prepend the new alert and play sound
+            setAlerts(prev => [payload.data, ...prev]);
+            playAlertSound(payload.data.priority);
+        } else if (payload.type === "alert_updated") {
+            // Reflect status change from another staff member
+            setAlerts(prev => prev.map(a => a.id === payload.data.id ? {...a, ...payload.data} : a));
+        }
+    }, []);
+
+    const {connected: wsConnected} = useHospitalAlerts(hospitalId, handleWsMessage);
+    // ─────────────────────────────────────────────────────────────────────────
+
     useEffect(() => {
         if (hospitalId) {
             fetchAlerts();
@@ -154,7 +172,15 @@ const Alerts = () => {
             <div className="alerts-container">
                 <div className="alerts-header">
                     <div className="alerts-header-left">
-                        <h2>Emergency Alerts</h2>
+                        <h2>Emergency Alerts
+                            <span style={{
+                                marginLeft: '10px', fontSize: '12px', fontWeight: 400,
+                                color: wsConnected ? '#059669' : '#9ca3af',
+                                verticalAlign: 'middle',
+                            }}>
+                                {wsConnected ? '● Live' : '○ Connecting...'}
+                            </span>
+                        </h2>
                         <div className="search-bar">
                             <input
                                 type="text"

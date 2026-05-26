@@ -51,6 +51,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField(read_only=True)
     role_display = serializers.CharField(source='user.get_role_display', read_only=True)
 
+    hospital_id = serializers.PrimaryKeyRelatedField(source='hospital', read_only=True)
+
     class Meta:
         model = UserProfile
         fields = ['user', 'license_number', 'ambulance_id', 'hospital_id', 'department',
