@@ -21,7 +21,8 @@ class HospitalSignupSerializer(serializers.ModelSerializer):
         fields = [
             'name', 'address', 'phone', 'bed_capacity',
             'emergency_contact', 'admin_email',
-            'password', 'password_confirm'
+            'password', 'password_confirm',
+            'latitude', 'longitude'
         ]
 
     def validate(self, attrs):

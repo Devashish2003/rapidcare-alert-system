@@ -1,8 +1,12 @@
+import logging
+
 from django.db.models import Q, Sum
 from django.utils import timezone
 from rest_framework import viewsets, status, permissions, views
 from rest_framework.decorators import action
 from rest_framework.response import Response
+
+logger = logging.getLogger(__name__)
 
 from apps.users.permissions import IsHospitalStaff, IsHospitalStaffOrReadOnly
 from .models import (
@@ -14,6 +18,74 @@ from .serializers import (
     EquipmentSerializer, EmergencyAlertSerializer, PatientReferralSerializer,
     DashboardStatsSerializer, DepartmentStatusSerializer
 )
+
+
+def _update_emergency_status(alert, new_status):
+    """Set the related Emergency's status when a hospital acknowledges."""
+    from apps.ambulance.models import Ambulance, Emergency
+    try:
+        ambulance = Ambulance.objects.get(unit_number=alert.ambulance_id)
+        emergency = Emergency.objects.filter(
+            ambulance=ambulance,
+            assigned_hospital=alert.receiving_hospital,
+            status__in=['pending', 'en_route'],
+        ).order_by('-created_at').first()
+        if emergency:
+            emergency.status = new_status
+            emergency.save(update_fields=['status', 'updated_at'])
+    except Exception:
+        pass
+
+
+def _reset_emergency_on_rejection(alert):
+    """On rejection, set the emergency back to pending and clear assigned_hospital
+    so the driver knows to select a new hospital."""
+    from apps.ambulance.models import Ambulance, Emergency
+    try:
+        ambulance = Ambulance.objects.get(unit_number=alert.ambulance_id)
+        emergency = Emergency.objects.filter(
+            ambulance=ambulance,
+            assigned_hospital=alert.receiving_hospital,
+            status__in=['pending', 'en_route'],
+        ).order_by('-created_at').first()
+        if emergency:
+            emergency.status = 'pending'
+            emergency.assigned_hospital = None
+            emergency.save(update_fields=['status', 'assigned_hospital', 'updated_at'])
+    except Exception:
+        pass
+
+
+def _notify_ambulance(alert, event_type):
+    """Push a status notification to the ambulance driver's status channel."""
+    from asgiref.sync import async_to_sync
+    from channels.layers import get_channel_layer
+    from apps.ambulance.models import Ambulance
+    try:
+        ambulance = Ambulance.objects.get(unit_number=alert.ambulance_id)
+        channel_layer = get_channel_layer()
+        if channel_layer is None:
+            logger.warning("_notify_ambulance: channel layer is None — check CHANNEL_LAYERS settings")
+            return
+        async_to_sync(channel_layer.group_send)(
+            f"ambulance_{ambulance.id}_status",
+            {
+                "type": event_type,
+                "data": {
+                    "alert_id": alert.id,
+                    "patient_name": alert.patient_name,
+                    "hospital": alert.receiving_hospital.name,
+                    "status": event_type.replace("alert_", ""),
+                },
+            }
+        )
+    except Ambulance.DoesNotExist:
+        logger.warning(
+            "_notify_ambulance: no Ambulance with unit_number=%r (alert_id=%s)",
+            alert.ambulance_id, alert.id,
+        )
+    except Exception:
+        logger.exception("_notify_ambulance: unexpected error for alert_id=%s", alert.id)
 
 
 class HospitalViewSet(viewsets.ModelViewSet):
@@ -162,6 +234,8 @@ class EmergencyAlertViewSet(viewsets.ModelViewSet):
         alert.acknowledged_at = timezone.now()
         alert.acknowledged_by = request.user
         alert.save()
+        _update_emergency_status(alert, 'en_route')
+        _notify_ambulance(alert, "alert_acknowledged")
 
         return Response(EmergencyAlertSerializer(alert).data)
 
@@ -177,6 +251,8 @@ class EmergencyAlertViewSet(viewsets.ModelViewSet):
 
         alert.status = 'rejected'
         alert.save()
+        _reset_emergency_on_rejection(alert)
+        _notify_ambulance(alert, "alert_rejected")
 
         return Response(EmergencyAlertSerializer(alert).data)
 

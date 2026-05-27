@@ -1,8 +1,9 @@
-import React, {useEffect, useState} from "react";
+import React, {useCallback, useEffect, useRef, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {useAuth} from "../../contexts/AuthContext";
 import apiService from "../../services/api";
 import {useAmbulanceLocation} from "../../hooks/useAmbulanceLocation";
+import {useAmbulanceStatus} from "../../hooks/useAmbulanceStatus";
 import AmbulanceHeader from "./AmbulanceHeader";
 import "./ambulance.css";
 
@@ -41,6 +42,41 @@ const Ambulance = () => {
     const {connected: locationConnected, position} = useAmbulanceLocation(ambulance?.id);
     // ─────────────────────────────────────────────────────────────────────────
 
+    // ── Hospital acknowledgement notifications ───────────────────────────────────
+    const [notifications, setNotifications] = useState([]);
+    const fetchRef = useRef(fetchDashboardData);
+    useEffect(() => { fetchRef.current = fetchDashboardData; });
+
+    const handleStatusMessage = useCallback((payload) => {
+        if (payload.type === 'alert_acknowledged' || payload.type === 'alert_rejected') {
+            const note = {
+                id: Date.now(),
+                type: payload.type,
+                ...payload.data,
+            };
+            setNotifications(prev => [note, ...prev.slice(0, 4)]);
+            setTimeout(() => setNotifications(prev => prev.filter(n => n.id !== note.id)), 8000);
+            // Refresh dashboard so emergency status reflects the change
+            setTimeout(() => fetchRef.current?.(), 500);
+        }
+    }, []);
+
+    const {connected: statusConnected} = useAmbulanceStatus(ambulance?.id, handleStatusMessage);
+
+    // When the status WS (re)connects, refresh immediately so any acknowledged/rejected
+    // alerts that arrived while the socket was offline are reflected in the UI.
+    useEffect(() => {
+        if (statusConnected) fetchRef.current?.();
+    }, [statusConnected]);
+
+    // Fallback polling: refresh every 5 s while there are active (pending/en_route) emergencies.
+    useEffect(() => {
+        if (!activeEmergencies.length) return;
+        const id = setInterval(() => fetchRef.current?.(), 5_000);
+        return () => clearInterval(id);
+    }, [activeEmergencies.length]);
+    // ────────────────────────────────────────────────────────────────────────────
+
     const displayName = authUser?.first_name || authUser?.username || 'Driver';
 
     return (
@@ -55,6 +91,27 @@ const Ambulance = () => {
 
                 <button className="primary-btn" onClick={() => navigate('/new-emergency')}>+ New Emergency</button>
             </div>
+
+            {notifications.length > 0 && (
+                <div style={{margin: '0 0 16px', display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                    {notifications.map(n => (
+                        <div key={n.id} style={{
+                            padding: '12px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: 500,
+                            background: n.type === 'alert_acknowledged' ? '#f0fdf4' : '#fef2f2',
+                            border: `1px solid ${n.type === 'alert_acknowledged' ? '#86efac' : '#fca5a5'}`,
+                            color: n.type === 'alert_acknowledged' ? '#166534' : '#991b1b',
+                            display: 'flex', alignItems: 'center', gap: '10px',
+                        }}>
+                            <span style={{fontSize: '18px'}}>{n.type === 'alert_acknowledged' ? '✅' : '❌'}</span>
+                            <span>
+                                <strong>{n.hospital}</strong>{' '}
+                                {n.type === 'alert_acknowledged' ? 'acknowledged' : 'rejected'} the alert for{' '}
+                                <strong>{n.patient_name}</strong>
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* Inline loading / error banners */}
             {loading && <div style={{padding: '1rem', color: '#6b7280'}}>Loading dashboard...</div>}

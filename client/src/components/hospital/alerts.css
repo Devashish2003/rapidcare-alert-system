@@ -118,7 +118,9 @@
 }
 
 .btn.secondary {
-    background: #87CEEB;
+    background: #f8fafc;
+    color: #374151;
+    border: 1px solid #d1d5db;
 }
 
 .btn.success {

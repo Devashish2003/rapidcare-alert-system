@@ -2,7 +2,22 @@ import React, {useCallback, useEffect, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {useAuth} from "../../contexts/AuthContext";
 import apiService from "../../services/api";
+import {MapContainer, Marker, TileLayer, useMapEvents} from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import "./hospitaldashboard.css";
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+function LocationPicker({position, onPick}) {
+    useMapEvents({click: (e) => onPick(e.latlng.lat, e.latlng.lng)});
+    return position ? <Marker position={position}/> : null;
+}
 
 const DEPT_PRESETS = [
     'ICU', 'Emergency', 'Cardiology', 'Orthopedics', 'Ophthalmology',
@@ -53,6 +68,7 @@ const HospitalDashboard = () => {
     const [stats, setStats]                 = useState({active_alerts:0,available_beds:0,doctors_on_duty:0,todays_emergencies:0,high_priority_alerts:0,medium_priority_alerts:0,low_priority_alerts:0});
     const [recentAlerts, setRecentAlerts]   = useState([]);
     const [overviewLoading, setOverviewLoading] = useState(true);
+    const [hasLocation, setHasLocation]     = useState(false);
 
     // Departments
     const [departments, setDepartments]     = useState([]);
@@ -75,7 +91,8 @@ const HospitalDashboard = () => {
     const [equipSaving, setEquipSaving]     = useState(false);
 
     // Profile
-    const [profileForm, setProfileForm]     = useState({name:'',address:'',phone:'',email:'',emergency_contact:'',bed_capacity:0});
+    const [profileForm, setProfileForm]     = useState({name:'',address:'',phone:'',email:'',emergency_contact:'',bed_capacity:0,latitude:'',longitude:''});
+    const [mapCenter, setMapCenter]          = useState([20.5937, 78.9629]);
     const [profileLoading, setProfileLoading] = useState(false);
     const [profileSaving, setProfileSaving]   = useState(false);
     const [profileSaved, setProfileSaved]     = useState(false);
@@ -89,12 +106,14 @@ const HospitalDashboard = () => {
         if (!hospitalId) return;
         try {
             setOverviewLoading(true);
-            const [s, a] = await Promise.all([
+            const [s, a, h] = await Promise.all([
                 apiService.getHospitalDashboardStats(hospitalId),
                 apiService.getRecentAlerts(hospitalId),
+                apiService.getHospital(hospitalId),
             ]);
             setStats(s);
             setRecentAlerts(Array.isArray(a) ? a : a.results || []);
+            setHasLocation(!!(h.latitude && h.longitude));
         } catch (e) { console.error(e); }
         finally { setOverviewLoading(false); }
     }, [hospitalId]);
@@ -138,12 +157,16 @@ const HospitalDashboard = () => {
         try {
             setProfileLoading(true);
             const data = await apiService.getHospital(hospitalId);
+            const lat = data.latitude ? String(parseFloat(data.latitude)) : '';
+            const lng = data.longitude ? String(parseFloat(data.longitude)) : '';
             setProfileForm({
                 name: data.name||'', address: data.address||'',
                 phone: data.phone||'', email: data.email||'',
                 emergency_contact: data.emergency_contact||'',
                 bed_capacity: data.bed_capacity||0,
+                latitude: lat, longitude: lng,
             });
+            if (lat && lng) setMapCenter([parseFloat(lat), parseFloat(lng)]);
         } catch (e) { console.error(e); }
         finally { setProfileLoading(false); }
     }, [hospitalId]);
@@ -275,6 +298,7 @@ const HospitalDashboard = () => {
             await apiService.updateHospital(hospitalId, profileForm);
             showToast('success', 'Profile saved.');
             setProfileSaved(true);
+            setHasLocation(!!(profileForm.latitude && profileForm.longitude));
             setTimeout(() => setProfileSaved(false), 2500);
         } catch {
             showToast('error', 'Failed to save profile.');
@@ -412,12 +436,25 @@ const HospitalDashboard = () => {
                                     <button className="action-btn" onClick={() => setActiveTab('blood')}>Update Blood Bank</button>
                                     <button className="action-btn" onClick={() => setActiveTab('equipment')}>Manage Equipment</button>
                                     <button className="action-btn" onClick={() => navigate('/referrals')}>Patient Referrals</button>
+                                    <button className="action-btn" onClick={() => setActiveTab('profile')}>📍 Update Hospital Location</button>
                                 </div>
                                 <div className="card system-status">
                                     <h3>System Status</h3>
                                     <p>Real-time Alerts <span className="status active">Active</span></p>
                                     <p>Network <span className="status active">Online</span></p>
                                     <p>Hospital ID <span style={{color:'#dc2626',fontWeight:700}}>#{hospitalId}</span></p>
+                                    <p>GPS Location{' '}
+                                        {hasLocation
+                                            ? <span className="status active">Set ✓</span>
+                                            : <span style={{color:'#f59e0b',fontWeight:600,fontSize:'12px'}}>
+                                                ⚠ Not set —{' '}
+                                                <button
+                                                    onClick={() => setActiveTab('profile')}
+                                                    style={{background:'none',border:'none',color:'#dc2626',cursor:'pointer',fontWeight:600,fontSize:'12px',padding:0,textDecoration:'underline'}}
+                                                >Set now</button>
+                                              </span>
+                                        }
+                                    </p>
                                 </div>
                             </div>
                         </>
@@ -741,7 +778,54 @@ const HospitalDashboard = () => {
                                         <label>Total Bed Capacity</label>
                                         <input type="number" min="0" value={profileForm.bed_capacity} onChange={e => setProfileForm(p => ({...p, bed_capacity: e.target.value}))}/>
                                     </div>
+                                    <div className="hd-field">
+                                        <label>Latitude</label>
+                                        <input type="number" step="any" placeholder="e.g. 28.613939"
+                                               value={profileForm.latitude}
+                                               onChange={e => {
+                                                   setProfileForm(p => ({...p, latitude: e.target.value}));
+                                                   if (e.target.value && profileForm.longitude)
+                                                       setMapCenter([parseFloat(e.target.value), parseFloat(profileForm.longitude)]);
+                                               }}/>
+                                    </div>
+                                    <div className="hd-field">
+                                        <label>Longitude</label>
+                                        <input type="number" step="any" placeholder="e.g. 77.209021"
+                                               value={profileForm.longitude}
+                                               onChange={e => {
+                                                   setProfileForm(p => ({...p, longitude: e.target.value}));
+                                                   if (profileForm.latitude && e.target.value)
+                                                       setMapCenter([parseFloat(profileForm.latitude), parseFloat(e.target.value)]);
+                                               }}/>
+                                    </div>
                                 </div>
+
+                                <div style={{marginTop: '16px'}}>
+                                    <label style={{fontSize:'13px',fontWeight:600,color:'#374151',display:'block',marginBottom:'8px'}}>
+                                        Hospital Location — click the map to set pin
+                                    </label>
+                                    <div style={{height:'280px',borderRadius:'8px',overflow:'hidden',border:'1px solid #e5e7eb'}}>
+                                        <MapContainer center={mapCenter} zoom={12} style={{width:'100%',height:'100%'}} key={mapCenter.join(',')}>
+                                            <TileLayer
+                                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                            />
+                                            <LocationPicker
+                                                position={profileForm.latitude && profileForm.longitude
+                                                    ? [parseFloat(profileForm.latitude), parseFloat(profileForm.longitude)]
+                                                    : null}
+                                                onPick={(lat, lng) => {
+                                                    setProfileForm(p => ({...p, latitude: lat.toFixed(6), longitude: lng.toFixed(6)}));
+                                                    setMapCenter([lat, lng]);
+                                                }}
+                                            />
+                                        </MapContainer>
+                                    </div>
+                                    <p style={{margin:'6px 0 0',fontSize:'12px',color:'#6b7280'}}>
+                                        Location is used to calculate ETA and distance for incoming ambulances.
+                                    </p>
+                                </div>
+
                                 <div className="hd-profile-footer">
                                     <button className="hd-btn-primary" onClick={saveProfile} disabled={profileSaving}>
                                         {profileSaving ? 'Saving…' : profileSaved ? '✓ Saved!' : 'Save Profile'}

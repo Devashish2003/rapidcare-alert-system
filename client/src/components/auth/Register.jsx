@@ -163,6 +163,8 @@ const Register = () => {
                     admin_email: form.adminEmail,
                     password: form.password,
                     password_confirm: form.confirmPassword,
+                    ...(form.latitude && {latitude: form.latitude}),
+                    ...(form.longitude && {longitude: form.longitude}),
                 });
                 // Hospital signup creates an admin account — redirect to login
                 navigate('/login', { state: { message: 'Hospital registered! Login with your admin email.' } });
@@ -483,6 +485,31 @@ const Register = () => {
                           />
                           <label>Admin Email</label>
                           {errors.adminEmail && <span className="error-message">{errors.adminEmail}</span>}
+                      </div>
+
+                      <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px'}}>
+                          <div className="input-group">
+                              <input
+                                  type="number"
+                                  step="any"
+                                  name="latitude"
+                                  placeholder=" "
+                                  value={form.latitude || ""}
+                                  onChange={handleChange}
+                              />
+                              <label>Latitude (optional)</label>
+                          </div>
+                          <div className="input-group">
+                              <input
+                                  type="number"
+                                  step="any"
+                                  name="longitude"
+                                  placeholder=" "
+                                  value={form.longitude || ""}
+                                  onChange={handleChange}
+                              />
+                              <label>Longitude (optional)</label>
+                          </div>
                       </div>
                   </>
               )}

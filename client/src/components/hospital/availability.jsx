@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {useAuth} from "../../contexts/AuthContext";
 import apiService from "../../services/api";
@@ -56,16 +56,52 @@ const Availability = () => {
     const [saving, setSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
 
+    // GPS location state
+    const [gpsPosition, setGpsPosition] = useState(null);   // {latitude, longitude}
+    const [gpsStatus, setGpsStatus] = useState('idle');     // idle | acquiring | live | error
+    const [savedLocation, setSavedLocation] = useState(null); // {latitude, longitude}
+    const [locationSaving, setLocationSaving] = useState(false);
+    const [locationSaveSuccess, setLocationSaveSuccess] = useState(false);
+    const watchIdRef = useRef(null);
+
     const hospitalId = user?.profile?.hospital_id;
 
     useEffect(() => {
         if (hospitalId) {
             fetchData();
+            // Load existing hospital location
+            apiService.getHospital(hospitalId).then(h => {
+                if (h.latitude && h.longitude) {
+                    setSavedLocation({latitude: h.latitude, longitude: h.longitude});
+                }
+            }).catch(() => {});
         } else {
             setLoading(false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [hospitalId]);
+
+    // Start GPS watch automatically when component mounts
+    useEffect(() => {
+        if (!navigator.geolocation) {
+            setGpsStatus('error');
+            return;
+        }
+        setGpsStatus('acquiring');
+        watchIdRef.current = navigator.geolocation.watchPosition(
+            (pos) => {
+                setGpsPosition({latitude: pos.coords.latitude, longitude: pos.coords.longitude});
+                setGpsStatus('live');
+            },
+            () => setGpsStatus('error'),
+            {enableHighAccuracy: true, timeout: 15000, maximumAge: 5000}
+        );
+        return () => {
+            if (watchIdRef.current !== null) {
+                navigator.geolocation.clearWatch(watchIdRef.current);
+            }
+        };
+    }, []);
 
     const fetchData = async () => {
         try {
@@ -124,6 +160,24 @@ const Availability = () => {
         }
     };
 
+    const handleSaveLocation = async () => {
+        if (!gpsPosition || !hospitalId) return;
+        try {
+            setLocationSaving(true);
+            await apiService.updateHospital(hospitalId, {
+                latitude: gpsPosition.latitude,
+                longitude: gpsPosition.longitude,
+            });
+            setSavedLocation({latitude: gpsPosition.latitude, longitude: gpsPosition.longitude});
+            setLocationSaveSuccess(true);
+            setTimeout(() => setLocationSaveSuccess(false), 3000);
+        } catch (err) {
+            console.error('Error saving hospital location:', err);
+        } finally {
+            setLocationSaving(false);
+        }
+    };
+
     if (loading) return <div className="dashboard-container">Loading...</div>;
 
     if (!hospitalId) {
@@ -155,6 +209,51 @@ const Availability = () => {
                         <p>Last synced just now</p>
                     </div>
                     <button className="secondary-btn" onClick={fetchData}>Sync Now</button>
+                </div>
+
+                {/* GPS LOCATION */}
+                <div className="location-detect-card">
+                    <div className="location-detect-header">
+                        <div>
+                            <strong>📍 Hospital GPS Location</strong>
+                            <span className={`gps-status-pill ${gpsStatus}`}>
+                                {gpsStatus === 'live' ? '● Live' :
+                                 gpsStatus === 'acquiring' ? '○ Acquiring...' :
+                                 gpsStatus === 'error' ? '✕ Unavailable' : '○ Idle'}
+                            </span>
+                        </div>
+                        <button
+                            className="primary-btn"
+                            onClick={handleSaveLocation}
+                            disabled={!gpsPosition || locationSaving}
+                        >
+                            {locationSaving ? 'Saving...' : locationSaveSuccess ? 'Saved! ✓' : 'Save as Hospital Location'}
+                        </button>
+                    </div>
+
+                    <div className="location-detect-body">
+                        <div className="location-coords-box">
+                            <p className="coords-label">Current Device GPS</p>
+                            <p className="coords-value">
+                                {gpsPosition
+                                    ? `${Number(gpsPosition.latitude).toFixed(6)}, ${Number(gpsPosition.longitude).toFixed(6)}`
+                                    : gpsStatus === 'error'
+                                        ? 'GPS not available — check browser permissions'
+                                        : 'Acquiring GPS signal...'}
+                            </p>
+                        </div>
+                        <div className="location-coords-box saved">
+                            <p className="coords-label">Saved Hospital Location</p>
+                            <p className="coords-value">
+                                {savedLocation
+                                    ? `${Number(savedLocation.latitude).toFixed(6)}, ${Number(savedLocation.longitude).toFixed(6)}`
+                                    : 'Not set — ETA calculations will be unavailable'}
+                            </p>
+                        </div>
+                    </div>
+                    <p className="location-detect-hint">
+                        Open this page from the hospital's computer or phone to auto-detect the correct GPS coordinates.
+                    </p>
                 </div>
 
                 {/* DEPARTMENTS */}

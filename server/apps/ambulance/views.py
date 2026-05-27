@@ -326,7 +326,21 @@ class EmergencyViewSet(viewsets.ModelViewSet):
 
             emergency.assigned_hospital = hospital
 
-        emergency.save()
+        # Persist ETA and distance if the frontend passed them (from recommend_hospitals)
+        update_fields = []
+        eta_value = request.data.get('eta')
+        distance_value = request.data.get('distance')
+        if eta_value:
+            emergency.eta_to_hospital = str(eta_value)
+            update_fields.append('eta_to_hospital')
+        if distance_value:
+            emergency.distance_to_hospital = str(distance_value)
+            update_fields.append('distance_to_hospital')
+
+        if is_backup:
+            emergency.save(update_fields=['backup_hospital'] + update_fields + ['updated_at'])
+        else:
+            emergency.save(update_fields=['assigned_hospital'] + update_fields + ['updated_at'])
 
         if not is_backup:
             severity_to_priority = {'critical': 'high', 'high': 'high', 'medium': 'medium', 'low': 'low'}
@@ -349,7 +363,7 @@ class EmergencyViewSet(viewsets.ModelViewSet):
                 case_description=emergency.condition_description,
                 priority=priority,
                 eta=emergency.eta_to_hospital or 'N/A',
-                distance=str(emergency.distance_to_hospital) if emergency.distance_to_hospital else 'N/A',
+                distance=emergency.distance_to_hospital or 'N/A',
                 ambulance_id=emergency.ambulance.unit_number,
                 receiving_hospital=hospital,
                 tags=tags,

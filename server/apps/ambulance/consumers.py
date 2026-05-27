@@ -86,3 +86,34 @@ class AmbulanceLocationConsumer(AsyncWebsocketConsumer):
             )
         except Ambulance.DoesNotExist:
             pass
+
+
+class AmbulanceStatusConsumer(AsyncWebsocketConsumer):
+    """
+    Driver connects to /ws/ambulance/<ambulance_id>/status/
+    Receives alert acknowledgement / rejection notifications from hospitals.
+    """
+
+    async def connect(self):
+        user = self.scope.get("user")
+        if not user or not user.is_authenticated:
+            await self.close(code=4001)
+            return
+
+        self.ambulance_id = self.scope["url_route"]["kwargs"]["ambulance_id"]
+        self.group_name = f"ambulance_{self.ambulance_id}_status"
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        if hasattr(self, "group_name"):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def receive(self, text_data=None, bytes_data=None):
+        pass
+
+    async def alert_acknowledged(self, event):
+        await self.send(text_data=json.dumps({"type": "alert_acknowledged", "data": event["data"]}))
+
+    async def alert_rejected(self, event):
+        await self.send(text_data=json.dumps({"type": "alert_rejected", "data": event["data"]}))

@@ -49,7 +49,69 @@ const Navigation = () => {
     );
 };
 
-const Alert = ({alert, onAcknowledge, onReject}) => {
+const DetailModal = ({alert, onClose}) => (
+    <div onClick={onClose} style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+        margin: 0, padding: 0,
+    }}>
+        <div onClick={e => e.stopPropagation()} style={{
+            background: '#fff', borderRadius: '12px', padding: '28px',
+            width: '100%', maxWidth: '520px', maxHeight: '85vh', overflowY: 'auto',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+        }}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px'}}>
+                <div>
+                    <span className={`priority-badge ${alert.priority}`} style={{marginBottom: '6px', display: 'inline-block'}}>{alert.priority}</span>
+                    <h3 style={{margin: 0, fontSize: '18px', color: '#111827'}}>Patient Details</h3>
+                </div>
+                <button onClick={onClose} style={{background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#6b7280', lineHeight: 1}}>✕</button>
+            </div>
+
+            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px'}}>
+                {[
+                    ['Patient Name', alert.patient_name],
+                    ['Age', alert.patient_age],
+                    ['Gender', alert.patient_gender],
+                    ['Ambulance Unit', alert.ambulance_id],
+                    ['ETA', alert.eta],
+                    ['Distance', alert.distance],
+                    ['Status', alert.status],
+                    ['Received', alert.time],
+                ].map(([label, value]) => (
+                    <div key={label} style={{background: '#f9fafb', borderRadius: '8px', padding: '10px 12px'}}>
+                        <div style={{fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>{label}</div>
+                        <div style={{fontSize: '14px', fontWeight: 600, color: '#111827'}}>{value || '—'}</div>
+                    </div>
+                ))}
+            </div>
+
+            <div style={{marginTop: '14px', background: '#f9fafb', borderRadius: '8px', padding: '12px'}}>
+                <div style={{fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px'}}>Case Description</div>
+                <p style={{margin: 0, fontSize: '14px', color: '#374151', lineHeight: 1.6}}>{alert.case_description || '—'}</p>
+            </div>
+
+            {(alert.tags || []).length > 0 && (
+                <div style={{marginTop: '14px'}}>
+                    <div style={{fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px'}}>Tags</div>
+                    <div style={{display: 'flex', flexWrap: 'wrap', gap: '6px'}}>
+                        {alert.tags.map((tag, i) => (
+                            <span key={i} className="tag">{tag}</span>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            <button onClick={onClose} style={{
+                marginTop: '20px', width: '100%', padding: '10px',
+                background: '#111827', color: 'white', border: 'none',
+                borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+            }}>Close</button>
+        </div>
+    </div>
+);
+
+const Alert = ({alert, onAcknowledge, onReject, onViewDetails}) => {
     return (
         <div className={`alert-card ${alert.priority}`}>
             <div className="alert-header">
@@ -86,13 +148,15 @@ const Alert = ({alert, onAcknowledge, onReject}) => {
                 ))}
             </div>
 
-            {alert.status === 'pending' && (
-                <div className="alert-actions">
-                    <button className="btn secondary">View Details</button>
-                    <button className="btn success" onClick={() => onAcknowledge(alert.id)}>Acknowledge</button>
-                    <button className="btn danger" onClick={() => onReject(alert.id)}>Cannot Accept</button>
-                </div>
-            )}
+            <div className="alert-actions">
+                <button className="btn secondary" onClick={() => onViewDetails(alert)}>View Details</button>
+                {alert.status === 'pending' && (
+                    <>
+                        <button className="btn success" onClick={() => onAcknowledge(alert.id)}>Acknowledge</button>
+                        <button className="btn danger" onClick={() => onReject(alert.id)}>Cannot Accept</button>
+                    </>
+                )}
+            </div>
         </div>
     );
 };
@@ -103,6 +167,7 @@ const Alerts = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
+    const [detailAlert, setDetailAlert] = useState(null);
 
     const hospitalId = user?.profile?.hospital_id;
 
@@ -147,7 +212,7 @@ const Alerts = () => {
     const handleAcknowledge = async (alertId) => {
         try {
             const updated = await apiService.acknowledgeAlert(alertId);
-            setAlerts(alerts.map(a => a.id === alertId ? updated : a));
+            setAlerts(prev => prev.map(a => a.id === alertId ? updated : a));
         } catch (err) {
             console.error('Error acknowledging alert:', err);
         }
@@ -156,7 +221,7 @@ const Alerts = () => {
     const handleReject = async (alertId) => {
         try {
             const updated = await apiService.rejectAlert(alertId);
-            setAlerts(alerts.map(a => a.id === alertId ? updated : a));
+            setAlerts(prev => prev.map(a => a.id === alertId ? updated : a));
         } catch (err) {
             console.error('Error rejecting alert:', err);
         }
@@ -219,6 +284,7 @@ const Alerts = () => {
                             alert={alert}
                             onAcknowledge={handleAcknowledge}
                             onReject={handleReject}
+                            onViewDetails={setDetailAlert}
                         />
                     ))}
                 </div>
@@ -229,6 +295,8 @@ const Alerts = () => {
                     </div>
                 )}
             </div>
+
+            {detailAlert && <DetailModal alert={detailAlert} onClose={() => setDetailAlert(null)}/>}
         </div>
     );
 };

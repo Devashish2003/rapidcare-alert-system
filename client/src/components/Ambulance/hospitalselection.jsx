@@ -132,11 +132,11 @@ const HospitalSelection = () => {
         setRouteCoords(null);
     };
 
-    const handleSelectHospital = async (hospitalId) => {
+    const handleSelectHospital = async (hospitalId, eta, distance) => {
         try {
             setAssigning(true);
             setError(null);
-            await apiService.assignHospital(emergencyId, hospitalId, false);
+            await apiService.assignHospital(emergencyId, hospitalId, false, eta, distance);
             setSelectedHospital(hospitalId);
             setTimeout(() => navigate("/ambulance"), 1500);
         } catch (err) {
@@ -246,7 +246,11 @@ const HospitalSelection = () => {
 
                                             <button
                                                 className="hs-select-btn"
-                                                onClick={() => handleSelectHospital(item.hospital.id)}
+                                                onClick={() => handleSelectHospital(
+                                                    item.hospital.id,
+                                                    item.eta,
+                                                    item.distance != null ? `${item.distance} km` : null
+                                                )}
                                                 disabled={assigning}
                                             >
                                                 {assigning ? "Assigning..." : "Select Hospital"}

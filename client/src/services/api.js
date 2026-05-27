@@ -172,10 +172,12 @@ class ApiService {
     return response.data;
   }
 
-  async assignHospital(emergencyId, hospitalId, isBackup = false) {
+  async assignHospital(emergencyId, hospitalId, isBackup = false, eta = null, distance = null) {
     const response = await this.api.post(`/api/ambulance/emergencies/${emergencyId}/assign_hospital/`, {
       hospital_id: hospitalId,
-      is_backup: isBackup
+      is_backup: isBackup,
+      ...(eta !== null && { eta }),
+      ...(distance !== null && { distance }),
     });
     return response.data;
   }

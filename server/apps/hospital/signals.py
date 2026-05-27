@@ -13,6 +13,23 @@ def _send_to_group(group_name, message):
     async_to_sync(channel_layer.group_send)(group_name, message)
 
 
+def _human_time(dt):
+    """Return a human-readable relative time string, matching EmergencyAlertSerializer.get_time."""
+    import datetime
+    from django.utils import timezone as tz
+    if dt is None:
+        return "Unknown"
+    now = tz.now()
+    diff = now - dt
+    if diff < datetime.timedelta(minutes=1):
+        return "Just now"
+    if diff < datetime.timedelta(hours=1):
+        return f"{diff.seconds // 60} mins ago"
+    if diff < datetime.timedelta(days=1):
+        return f"{diff.seconds // 3600} hours ago"
+    return f"{diff.days} days ago"
+
+
 @receiver(post_save, sender=EmergencyAlert)
 def push_emergency_alert(sender, instance, created, **kwargs):
     group = f"hospital_{instance.receiving_hospital_id}_alerts"
@@ -31,6 +48,7 @@ def push_emergency_alert(sender, instance, created, **kwargs):
         "ambulance_id": instance.ambulance_id,
         "tags": instance.tags,
         "created_at": str(instance.created_at),
+        "time": _human_time(instance.created_at),
     }
 
     _send_to_group(group, {"type": event_type, "data": alert_data})

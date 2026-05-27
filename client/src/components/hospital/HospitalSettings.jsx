@@ -3,7 +3,22 @@ import {useNavigate} from "react-router-dom";
 import {useAuth} from "../../contexts/AuthContext";
 import apiService from "../../services/api";
 import {usePushNotifications} from "../../hooks/usePushNotifications";
+import {MapContainer, Marker, TileLayer, useMapEvents} from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import "./hospitaldashboard.css";
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+function LocationPicker({position, onPick}) {
+    useMapEvents({click: (e) => onPick(e.latlng.lat, e.latlng.lng)});
+    return position ? <Marker position={position}/> : null;
+}
 
 const Navigation = () => {
     const {user} = useAuth();
@@ -66,6 +81,48 @@ const HospitalSettings = () => {
             });
         }
     }, [authUser]);
+
+    const hospitalId = authUser?.profile?.hospital_id;
+
+    const [hospitalLoc, setHospitalLoc] = useState({latitude: '', longitude: ''});
+    const [locMsg, setLocMsg] = useState(null);
+    const [locLoading, setLocLoading] = useState(false);
+    const [mapCenter, setMapCenter] = useState([20.5937, 78.9629]);
+
+    useEffect(() => {
+        if (!hospitalId) return;
+        apiService.getHospital(hospitalId).then(h => {
+            if (h.latitude && h.longitude) {
+                const lat = parseFloat(h.latitude);
+                const lng = parseFloat(h.longitude);
+                setHospitalLoc({latitude: String(lat), longitude: String(lng)});
+                setMapCenter([lat, lng]);
+            }
+        }).catch(() => {});
+    }, [hospitalId]);
+
+    const handleLocPick = (lat, lng) => {
+        setHospitalLoc({latitude: lat.toFixed(6), longitude: lng.toFixed(6)});
+        setMapCenter([lat, lng]);
+    };
+
+    const handleLocSave = async (e) => {
+        e.preventDefault();
+        if (!hospitalId) return;
+        setLocLoading(true);
+        setLocMsg(null);
+        try {
+            await apiService.updateHospital(hospitalId, {
+                latitude: hospitalLoc.latitude,
+                longitude: hospitalLoc.longitude,
+            });
+            setLocMsg({type: 'success', text: 'Location saved successfully.'});
+        } catch {
+            setLocMsg({type: 'error', text: 'Failed to save location.'});
+        } finally {
+            setLocLoading(false);
+        }
+    };
 
     const handleProfileSave = async (e) => {
         e.preventDefault();
@@ -215,6 +272,65 @@ const HospitalSettings = () => {
                     </form>
                 </div>
             </div>
+
+            {/* HOSPITAL LOCATION */}
+            {hospitalId && (
+                <div className="card" style={{margin: '24px 30px 0'}}>
+                    <h4 style={{margin: '0 0 4px', fontSize: '16px', color: '#111827'}}>Hospital Location</h4>
+                    <p style={{margin: '0 0 16px', fontSize: '13px', color: '#6b7280'}}>
+                        Click on the map or edit coordinates directly. Accurate location is required for ETA and distance calculations.
+                    </p>
+                    <div style={{height: '300px', borderRadius: '8px', overflow: 'hidden', marginBottom: '16px', border: '1px solid #e5e7eb'}}>
+                        <MapContainer center={mapCenter} zoom={12} style={{width: '100%', height: '100%'}} key={mapCenter.join(',')}>
+                            <TileLayer
+                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            />
+                            <LocationPicker
+                                position={hospitalLoc.latitude && hospitalLoc.longitude
+                                    ? [parseFloat(hospitalLoc.latitude), parseFloat(hospitalLoc.longitude)]
+                                    : null}
+                                onPick={handleLocPick}
+                            />
+                        </MapContainer>
+                    </div>
+                    <form onSubmit={handleLocSave} style={{display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap'}}>
+                        <div style={{flex: 1, minWidth: '160px'}}>
+                            <label style={labelStyle}>Latitude</label>
+                            <input
+                                style={inputStyle}
+                                type="number"
+                                step="any"
+                                placeholder="e.g. 28.613939"
+                                value={hospitalLoc.latitude}
+                                onChange={(e) => setHospitalLoc(p => ({...p, latitude: e.target.value}))}
+                                required
+                            />
+                        </div>
+                        <div style={{flex: 1, minWidth: '160px'}}>
+                            <label style={labelStyle}>Longitude</label>
+                            <input
+                                style={inputStyle}
+                                type="number"
+                                step="any"
+                                placeholder="e.g. 77.209021"
+                                value={hospitalLoc.longitude}
+                                onChange={(e) => setHospitalLoc(p => ({...p, longitude: e.target.value}))}
+                                required
+                            />
+                        </div>
+                        <button type="submit" disabled={locLoading} style={{
+                            padding: '9px 20px', background: locLoading ? '#9ca3af' : '#dc2626',
+                            color: 'white', border: 'none', borderRadius: '6px',
+                            cursor: locLoading ? 'not-allowed' : 'pointer', fontSize: '14px', fontWeight: '600',
+                            whiteSpace: 'nowrap',
+                        }}>
+                            {locLoading ? 'Saving...' : 'Save Location'}
+                        </button>
+                    </form>
+                    <MsgBox msg={locMsg}/>
+                </div>
+            )}
 
             {/* PUSH NOTIFICATIONS */}
             <div className="card" style={{margin: "24px 30px 0"}}>
