@@ -55,11 +55,47 @@ class AmbulanceViewSet(viewsets.ModelViewSet):
                         status=status.HTTP_404_NOT_FOUND
                     )
 
-            # Get active emergencies
-            active_emergencies = Emergency.objects.filter(
-                ambulance=ambulance,
-                status__in=['pending', 'en_route', 'at_hospital']
-            ).order_by('-created_at')
+            # Get active emergencies with all related data in one query
+            active_emergencies = list(
+                Emergency.objects.filter(
+                    ambulance=ambulance,
+                    status__in=['pending', 'en_route', 'at_hospital']
+                ).select_related('assigned_hospital', 'backup_hospital', 'ambulance')
+                .order_by('-created_at')
+            )
+
+            # Batch-fetch latest EmergencyAlert status per hospital for this ambulance
+            from apps.hospital.models import EmergencyAlert
+            alert_map = {}  # receiving_hospital_id → latest alert status
+            for row in (
+                    EmergencyAlert.objects
+                            .filter(ambulance_id=ambulance.unit_number)
+                            .order_by('-created_at')
+                            .values('receiving_hospital_id', 'status')
+            ):
+                hid = row['receiving_hospital_id']
+                if hid not in alert_map:  # keep latest (order is -created_at)
+                    alert_map[hid] = row['status']
+
+            # Annotate each emergency with alert_status, live_distance, live_eta
+            a_lat = ambulance.current_location_lat
+            a_lng = ambulance.current_location_lng
+            for emergency in active_emergencies:
+                hosp = emergency.assigned_hospital
+                emergency._alert_status = (
+                    alert_map.get(emergency.assigned_hospital_id)
+                    if emergency.assigned_hospital_id else None
+                )
+                if hosp and a_lat and a_lng and hosp.latitude and hosp.longitude:
+                    dist = haversine_distance(
+                        float(a_lat), float(a_lng),
+                        float(hosp.latitude), float(hosp.longitude),
+                    )
+                    emergency._live_distance = round(dist, 2)
+                    emergency._live_eta = estimate_eta_minutes(dist)
+                else:
+                    emergency._live_distance = None
+                    emergency._live_eta = None
 
             # Get recent completed emergencies (last 24 hours)
             recent_emergencies = Emergency.objects.filter(
@@ -69,15 +105,7 @@ class AmbulanceViewSet(viewsets.ModelViewSet):
             ).order_by('-completed_at')
 
             # Get nearby hospitals based on ambulance location
-            nearby_hospitals = []
-            if ambulance.current_location_lat and ambulance.current_location_lng:
-                ambulance_location = (ambulance.current_location_lat, ambulance.current_location_lng)
-                
-                hospitals = Hospital.objects.filter(is_active=True)
-                for hospital in hospitals:
-                    # Use hospital address as approximate location (in production, use actual coordinates)
-                    # For now, we'll return all active hospitals
-                    nearby_hospitals.append(hospital)
+            nearby_hospitals = list(Hospital.objects.filter(is_active=True)) if (a_lat and a_lng) else []
 
             # Calculate stats
             today_emergencies = Emergency.objects.filter(
@@ -87,10 +115,10 @@ class AmbulanceViewSet(viewsets.ModelViewSet):
 
             stats = {
                 'status': ambulance.get_status_display(),
-                'active_emergencies': active_emergencies.count(),
+                'active_emergencies': len(active_emergencies),
                 'today_emergencies': today_emergencies,
                 'nearby_hospitals': len(nearby_hospitals),
-                'average_response_time': '12m'  # Calculate from actual data in production
+                'average_response_time': '12m',
             }
 
             serializer = AmbulanceDashboardSerializer({

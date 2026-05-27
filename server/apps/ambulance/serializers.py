@@ -1,7 +1,8 @@
 from rest_framework import serializers
-from .models import Ambulance, Emergency, LocationUpdate
+
 from apps.hospital.serializers import HospitalSerializer
 from apps.users.serializers import UserSerializer
+from .models import Ambulance, Emergency, LocationUpdate
 
 
 class AmbulanceSerializer(serializers.ModelSerializer):
@@ -27,6 +28,9 @@ class EmergencySerializer(serializers.ModelSerializer):
     backup_hospital_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     voice_note_url = serializers.SerializerMethodField()
     patient_photo_url = serializers.SerializerMethodField()
+    alert_status = serializers.SerializerMethodField()
+    live_distance = serializers.SerializerMethodField()
+    live_eta = serializers.SerializerMethodField()
 
     class Meta:
         model = Emergency
@@ -38,6 +42,7 @@ class EmergencySerializer(serializers.ModelSerializer):
             'backup_hospital', 'backup_hospital_id',
             'pickup_location_lat', 'pickup_location_lng', 'pickup_address',
             'eta_to_hospital', 'distance_to_hospital', 'status',
+            'alert_status', 'live_distance', 'live_eta',
             'voice_note_url', 'patient_photo_url', 'notes',
             'created_at', 'updated_at', 'completed_at',
         ]
@@ -54,6 +59,16 @@ class EmergencySerializer(serializers.ModelSerializer):
         if obj.patient_photo:
             return request.build_absolute_uri(obj.patient_photo.url) if request else obj.patient_photo.url
         return None
+
+    def get_alert_status(self, obj):
+        # Pre-computed by the dashboard view to avoid N+1 queries
+        return getattr(obj, '_alert_status', None)
+
+    def get_live_distance(self, obj):
+        return getattr(obj, '_live_distance', None)
+
+    def get_live_eta(self, obj):
+        return getattr(obj, '_live_eta', None)
 
 
 class EmergencyCreateSerializer(serializers.ModelSerializer):

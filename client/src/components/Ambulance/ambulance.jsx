@@ -69,12 +69,16 @@ const Ambulance = () => {
         if (statusConnected) fetchRef.current?.();
     }, [statusConnected]);
 
-    // Fallback polling: refresh every 5 s while there are active (pending/en_route) emergencies.
+    // Fallback polling: refresh every 3 s while there are active (pending/en_route) emergencies.
+    // Always set up the interval; skip the fetch when there is nothing to update.
     useEffect(() => {
-        if (!activeEmergencies.length) return;
-        const id = setInterval(() => fetchRef.current?.(), 5_000);
+        const id = setInterval(() => {
+            if (fetchRef.current && (dashboardData?.active_emergencies?.length ?? 0) > 0) {
+                fetchRef.current();
+            }
+        }, 3_000);
         return () => clearInterval(id);
-    }, [activeEmergencies.length]);
+    }, [dashboardData?.active_emergencies?.length]);
     // ────────────────────────────────────────────────────────────────────────────
 
     const displayName = authUser?.first_name || authUser?.username || 'Driver';
@@ -178,20 +182,37 @@ const Ambulance = () => {
             {activeEmergencies.length > 0 && (
                 <div className="card">
                     <h4>⚡ Active Emergencies</h4>
-                    {activeEmergencies.map((emergency) => (
-                        <div className="emergency-item" key={emergency.id}>
-                            <div>
-                                <h5>
-                                    {emergency.patient_name} <span className={`badge ${emergency.severity}`}>{emergency.severity}</span>
-                                </h5>
-                                <p>{emergency.condition_description}</p>
-                                <span className="meta">
-              {emergency.assigned_hospital?.name || 'No hospital assigned'} • ETA: {emergency.eta_to_hospital || 'N/A'} • {emergency.distance_to_hospital || 'N/A'}
-            </span>
+                    {activeEmergencies.map((emergency) => {
+                        const eta = emergency.live_eta || emergency.eta_to_hospital || 'N/A';
+                        const dist = emergency.live_distance != null
+                            ? `${emergency.live_distance} km`
+                            : emergency.distance_to_hospital || 'N/A';
+                        const alertStatusMap = {
+                            acknowledged: 'Accepted',
+                            rejected: 'Rejected',
+                            pending: 'Pending',
+                            completed: 'Completed',
+                        };
+                        const alertStatus = emergency.alert_status;
+                        const statusLabel = alertStatus ? alertStatusMap[alertStatus] || alertStatus : 'Pending';
+                        const statusClass = alertStatus === 'acknowledged' ? 'accepted'
+                            : alertStatus === 'rejected' ? 'rejected'
+                            : 'pending';
+                        return (
+                            <div className="emergency-item" key={emergency.id}>
+                                <div>
+                                    <h5>
+                                        {emergency.patient_name} <span className={`badge ${emergency.severity}`}>{emergency.severity}</span>
+                                    </h5>
+                                    <p>{emergency.condition_description}</p>
+                                    <span className="meta">
+                                        {emergency.assigned_hospital?.name || 'No hospital assigned'} • ETA: {eta} • {dist}
+                                    </span>
+                                </div>
+                                <span className={`status-pill ${statusClass}`}>{statusLabel}</span>
                             </div>
-                            <span className={`status-pill ${emergency.status}`}>{emergency.status}</span>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 
