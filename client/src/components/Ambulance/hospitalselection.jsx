@@ -73,6 +73,19 @@ const HospitalSelection = () => {
             let lat = emergency.pickup_location_lat;
             let lng = emergency.pickup_location_lng;
 
+            // Fallback 1: ambulance's last known GPS saved by the WebSocket stream
+            if (!lat || !lng) {
+                try {
+                    const dashboard = await apiService.getAmbulanceDashboard();
+                    const amb = dashboard.ambulance;
+                    if (amb?.current_location_lat && amb?.current_location_lng) {
+                        lat = amb.current_location_lat;
+                        lng = amb.current_location_lng;
+                    }
+                } catch { /* proceed */ }
+            }
+
+            // Fallback 2: browser geolocation
             if (!lat || !lng) {
                 try {
                     const pos = await new Promise((resolve, reject) =>
@@ -80,8 +93,7 @@ const HospitalSelection = () => {
                     );
                     lat = pos.coords.latitude;
                     lng = pos.coords.longitude;
-                } catch { /* proceed without coords */
-                }
+                } catch { /* proceed without coords */ }
             }
 
             if (lat && lng) setAmbulancePos({lat: parseFloat(lat), lng: parseFloat(lng)});
@@ -232,11 +244,13 @@ const HospitalSelection = () => {
                                             <div className="hs-stats">
                                                 <div className="hs-stat">
                                                     <span className="hs-stat-label">Distance</span>
-                                                    <span className="hs-stat-value">{item.distance} km</span>
+                                                    <span className="hs-stat-value">
+                                                        {item.distance != null ? `${item.distance} km` : 'N/A'}
+                                                    </span>
                                                 </div>
                                                 <div className="hs-stat">
                                                     <span className="hs-stat-label">ETA</span>
-                                                    <span className="hs-stat-value">{item.eta}</span>
+                                                    <span className="hs-stat-value">{item.eta || 'N/A'}</span>
                                                 </div>
                                                 <div className="hs-stat">
                                                     <span className="hs-stat-label">Beds</span>
@@ -305,7 +319,7 @@ const HospitalSelection = () => {
                                                 >
                                                     <Popup>
                                                         <strong>#{index + 1} {hospital.name}</strong><br/>
-                                                        {item.distance} km · {item.eta}<br/>
+                                                        {item.distance != null ? `${item.distance} km` : 'N/A'} · {item.eta || 'N/A'}<br/>
                                                         {item.available_beds} beds available
                                                     </Popup>
                                                 </Marker>

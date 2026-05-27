@@ -76,6 +76,10 @@ class EquipmentSerializer(serializers.ModelSerializer):
 class EmergencyAlertSerializer(serializers.ModelSerializer):
     receiving_hospital_name = serializers.CharField(source='receiving_hospital.name', read_only=True)
     time = serializers.SerializerMethodField()
+    voice_note_url = serializers.SerializerMethodField()
+    patient_photo_url = serializers.SerializerMethodField()
+    live_distance = serializers.SerializerMethodField()
+    live_eta = serializers.SerializerMethodField()
 
     class Meta:
         model = EmergencyAlert
@@ -99,6 +103,48 @@ class EmergencyAlertSerializer(serializers.ModelSerializer):
             else:
                 return f"{diff.days} days ago"
         return "Unknown"
+
+    def _upload_url(self, obj, file_type):
+        if not obj.emergency_id:
+            return None
+        upload = obj.emergency.attachments.filter(file_type=file_type).order_by('-uploaded_at').first()
+        if not upload:
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(upload.file.url) if request else upload.file.url
+
+    def get_voice_note_url(self, obj):
+        return self._upload_url(obj, 'voice_note')
+
+    def get_patient_photo_url(self, obj):
+        return self._upload_url(obj, 'patient_photo')
+
+    def _live_dist_km(self, obj):
+        """Compute haversine distance from ambulance's current GPS to this hospital."""
+        hosp = obj.receiving_hospital
+        if not (hosp.latitude and hosp.longitude):
+            return None
+        if not obj.emergency_id:
+            return None
+        amb = obj.emergency.ambulance
+        if not (amb.current_location_lat and amb.current_location_lng):
+            return None
+        from apps.ambulance.utils import haversine_distance
+        return haversine_distance(
+            float(amb.current_location_lat), float(amb.current_location_lng),
+            float(hosp.latitude), float(hosp.longitude),
+        )
+
+    def get_live_distance(self, obj):
+        dist = self._live_dist_km(obj)
+        return round(dist, 2) if dist is not None else None
+
+    def get_live_eta(self, obj):
+        dist = self._live_dist_km(obj)
+        if dist is None:
+            return None
+        from apps.ambulance.utils import estimate_eta_minutes
+        return estimate_eta_minutes(dist)
 
 
 class PatientReferralSerializer(serializers.ModelSerializer):

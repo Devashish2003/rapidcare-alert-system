@@ -123,6 +123,12 @@ class EmergencyAlert(models.Model):
     # Hospital assignment
     receiving_hospital = models.ForeignKey(Hospital, on_delete=models.CASCADE, related_name='emergency_alerts')
 
+    # Link back to the source Emergency so hospital staff can access uploads
+    emergency = models.ForeignKey(
+        'ambulance.Emergency', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='alerts'
+    )
+
     # Metadata
     tags = models.JSONField(default=list, help_text="List of tags like ['Cardiac', 'Emergency']")
     created_at = models.DateTimeField(auto_now_add=True)

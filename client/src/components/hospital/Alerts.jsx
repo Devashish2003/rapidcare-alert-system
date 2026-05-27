@@ -49,7 +49,13 @@ const Navigation = () => {
     );
 };
 
-const DetailModal = ({alert, onClose}) => (
+const DetailModal = ({alert, onClose}) => {
+    const displayEta = alert.live_eta || alert.eta || 'N/A';
+    const displayDist = alert.live_distance != null
+        ? `${alert.live_distance} km`
+        : (alert.distance && alert.distance !== 'N/A' ? alert.distance : 'N/A');
+
+    return (
     <div onClick={onClose} style={{
         position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
@@ -74,8 +80,8 @@ const DetailModal = ({alert, onClose}) => (
                     ['Age', alert.patient_age],
                     ['Gender', alert.patient_gender],
                     ['Ambulance Unit', alert.ambulance_id],
-                    ['ETA', alert.eta],
-                    ['Distance', alert.distance],
+                    ['ETA', displayEta],
+                    ['Distance', displayDist],
                     ['Status', alert.status],
                     ['Received', alert.time],
                 ].map(([label, value]) => (
@@ -102,6 +108,28 @@ const DetailModal = ({alert, onClose}) => (
                 </div>
             )}
 
+            {alert.patient_photo_url && (
+                <div style={{marginTop: '14px'}}>
+                    <div style={{fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px'}}>Patient Photo</div>
+                    <img
+                        src={alert.patient_photo_url}
+                        alt="Patient"
+                        style={{width: '100%', maxHeight: '220px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e5e7eb'}}
+                    />
+                </div>
+            )}
+
+            {alert.voice_note_url && (
+                <div style={{marginTop: '14px'}}>
+                    <div style={{fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px'}}>Voice Note</div>
+                    <audio
+                        controls
+                        src={alert.voice_note_url}
+                        style={{width: '100%', borderRadius: '8px'}}
+                    />
+                </div>
+            )}
+
             <button onClick={onClose} style={{
                 marginTop: '20px', width: '100%', padding: '10px',
                 background: '#111827', color: 'white', border: 'none',
@@ -109,9 +137,15 @@ const DetailModal = ({alert, onClose}) => (
             }}>Close</button>
         </div>
     </div>
-);
+    );
+};
 
 const Alert = ({alert, onAcknowledge, onReject, onViewDetails}) => {
+    const displayEta = alert.live_eta || alert.eta || 'N/A';
+    const displayDist = alert.live_distance != null
+        ? `${alert.live_distance} km`
+        : (alert.distance && alert.distance !== 'N/A' ? alert.distance : 'N/A');
+
     return (
         <div className={`alert-card ${alert.priority}`}>
             <div className="alert-header">
@@ -130,11 +164,11 @@ const Alert = ({alert, onAcknowledge, onReject, onViewDetails}) => {
             <div className="alert-info">
                 <div>
                     <p className="label">ETA</p>
-                    <strong>{alert.eta}</strong>
+                    <strong>{displayEta}</strong>
                 </div>
                 <div>
                     <p className="label">Distance</p>
-                    <strong>{alert.distance}</strong>
+                    <strong>{displayDist}</strong>
                 </div>
                 <div>
                     <p className="label">Ambulance</p>

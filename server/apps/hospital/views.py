@@ -209,7 +209,9 @@ class EmergencyAlertViewSet(viewsets.ModelViewSet):
         priority = self.request.query_params.get('priority')
         status_param = self.request.query_params.get('status')
 
-        queryset = EmergencyAlert.objects.all()
+        queryset = EmergencyAlert.objects.select_related(
+            'emergency__ambulance', 'receiving_hospital'
+        )
 
         if hospital_id:
             queryset = queryset.filter(receiving_hospital_id=hospital_id)
@@ -237,7 +239,7 @@ class EmergencyAlertViewSet(viewsets.ModelViewSet):
         _update_emergency_status(alert, 'en_route')
         _notify_ambulance(alert, "alert_acknowledged")
 
-        return Response(EmergencyAlertSerializer(alert).data)
+        return Response(EmergencyAlertSerializer(alert, context={'request': request}).data)
 
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
@@ -254,7 +256,7 @@ class EmergencyAlertViewSet(viewsets.ModelViewSet):
         _reset_emergency_on_rejection(alert)
         _notify_ambulance(alert, "alert_rejected")
 
-        return Response(EmergencyAlertSerializer(alert).data)
+        return Response(EmergencyAlertSerializer(alert, context={'request': request}).data)
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
@@ -419,9 +421,9 @@ class DashboardViewSet(viewsets.ViewSet):
 
         alerts = EmergencyAlert.objects.filter(
             receiving_hospital_id=hospital_id
-        ).order_by('-created_at')[:5]
+        ).select_related('emergency__ambulance', 'receiving_hospital').order_by('-created_at')[:5]
 
-        serializer = EmergencyAlertSerializer(alerts, many=True)
+        serializer = EmergencyAlertSerializer(alerts, many=True, context={'request': request})
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'])

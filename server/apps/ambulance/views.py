@@ -394,6 +394,7 @@ class EmergencyViewSet(viewsets.ModelViewSet):
                 distance=emergency.distance_to_hospital or 'N/A',
                 ambulance_id=emergency.ambulance.unit_number,
                 receiving_hospital=hospital,
+                emergency=emergency,
                 tags=tags,
             )
 
